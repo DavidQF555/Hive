@@ -1,5 +1,6 @@
 package hive.common;
 
+import hive.registration.EntityTypeRegistry;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -14,6 +15,7 @@ public class Hive {
     }
 
     private void addRegistries(IEventBus bus) {
+        EntityTypeRegistry.TYPES.register(bus);
     }
 
 }
