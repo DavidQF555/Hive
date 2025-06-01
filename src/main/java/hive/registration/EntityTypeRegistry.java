@@ -18,7 +18,7 @@ public final class EntityTypeRegistry {
 
     public static final DeferredRegister.Entities TYPES = DeferredRegister.createEntities(Hive.ID);
 
-    public static final DeferredHolder<EntityType<?>, EntityType<DroidEntity>> DROID = register("droid", MobCategory.MONSTER, DroidEntity::new, type -> type.sized(1, 2));
+    public static final DeferredHolder<EntityType<?>, EntityType<DroidEntity>> DROID = register("droid", MobCategory.MONSTER, DroidEntity::new, type -> type.sized(0.6f, 1.8f).eyeHeight(1.62f));
 
     private EntityTypeRegistry() {
     }
