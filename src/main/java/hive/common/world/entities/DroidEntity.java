@@ -36,7 +36,8 @@ public class DroidEntity extends PathfinderMob {
     public static AttributeSupplier.Builder createAttributes() {
         return createMobAttributes()
                 .add(Attributes.ATTACK_DAMAGE, 1)
-                .add(Attributes.MOVEMENT_SPEED, 0.1f);
+                .add(Attributes.MOVEMENT_SPEED, 0.1f)
+                .add(Attributes.FOLLOW_RANGE, 64);
     }
 
     @Override

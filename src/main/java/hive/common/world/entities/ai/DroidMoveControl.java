@@ -15,12 +15,11 @@ public class DroidMoveControl extends MoveControl {
         super(mob);
     }
 
-    //JUMPING == FLOATING
     @Override
     public void tick() {
         double dX = wantedX - mob.getX();
         double dZ = wantedZ - mob.getZ();
-        float rot = rotlerp(this.mob.getYRot(), (float) (Mth.atan2(dZ, dX) * 180 / (float) Math.PI) - 90, 90);
+        float rot = rotlerp(mob.getYRot(), (float) (Mth.atan2(dZ, dX) * 180 / (float) Math.PI) - 90, 90);
         double len = Math.sqrt(dX * dX + dZ * dZ);
         double max = this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED);
         if (len < 2.5000003E-7F) {
@@ -49,30 +48,33 @@ public class DroidMoveControl extends MoveControl {
             }
         }
         if (operation == Operation.WAIT) {
-            // TODO: should ensure delta movement is 0 instead of just setting impulse
-            mob.setZza(0);
-            mob.setXxa(0);
+            setDeltaMovement(0, 0, max);
+            if (mob.zza < 2.5000003E-7F) {
+                mob.setZza(0);
+            }
+            if (mob.xxa < 2.5000003E-7F) {
+                mob.setXxa(0);
+            }
         }
     }
 
     private void setDeltaMovement(double cX, double cZ, double speed) {
-        double dX = wantedX - mob.getX();
-        double dZ = wantedZ - mob.getZ();
-        double len = Math.sqrt(dX * dX + dZ * dZ);
         mob.setSpeed((float) speed);
+        double rot = mob.getYRot() * Math.PI / 180;
+        double dX = -Math.sin(rot);
+        double dZ = Math.cos(rot);
         Vec3 delta = mob.getDeltaMovement();
         double changeDX = (cX - delta.x()) / speed;
         double changeDZ = (cZ - delta.z()) / speed;
-        double dot = changeDX * dX + changeDZ * dZ;
-        double zza = dot / len;
-        mob.setZza((float) Mth.clamp(zza, -1, 1));
-        double sX = changeDX - zza / len * dX;
-        double sZ = changeDZ - zza / len * dZ;
+        double zza = changeDX * dX + changeDZ * dZ;
+        double sX = changeDX - zza * dX;
+        double sZ = changeDZ - zza * dZ;
         double xxa = Math.sqrt(sX * sX + sZ * sZ);
         double side = -changeDX * sZ + changeDZ * sX;
         if (side < 0) {
             xxa *= -1;
         }
+        mob.setZza((float) Mth.clamp(zza, -1, 1));
         mob.setXxa((float) Mth.clamp(xxa, -1, 1));
     }
 
