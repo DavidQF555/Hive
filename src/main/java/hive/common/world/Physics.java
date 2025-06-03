@@ -20,6 +20,13 @@ public final class Physics {
         return Optional.of(max);
     }
 
+    public static double getHeight(double gravity, double dY) {
+        if (gravity == 0) {
+            return 0;
+        }
+        return dY * dY / gravity / -2;
+    }
+
     public static double getHeightFromDistance(double gravity, double dY, double dX, double x) {
         if (dX == 0) {
             return 0;

@@ -9,6 +9,7 @@ public class DroidPathfinder extends PathFinder {
 
     public DroidPathfinder(NodeEvaluator eval, int max) {
         super(eval, max);
+        neighbors = new Node[128];
     }
 
     public static boolean isJump(@Nullable Node prev, Node next) {

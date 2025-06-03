@@ -5,6 +5,7 @@ import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.PathFinder;
+import net.minecraft.world.phys.Vec3;
 
 public class DroidPathNavigation extends GroundPathNavigation {
 
@@ -28,6 +29,11 @@ public class DroidPathNavigation extends GroundPathNavigation {
                 control.jump();
             }
         }
+    }
+
+    @Override
+    protected boolean shouldTargetNextNodeInDirection(Vec3 start) {
+        return super.shouldTargetNextNodeInDirection(start) && !DroidPathfinder.isJump(path.getNextNode(), path.getNode(path.getNextNodeIndex() + 1));
     }
 
 }

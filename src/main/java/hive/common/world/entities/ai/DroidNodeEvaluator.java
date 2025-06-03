@@ -1,6 +1,8 @@
 package hive.common.world.entities.ai;
 
 import hive.common.world.Physics;
+import it.unimi.dsi.fastutil.longs.Long2BooleanMap;
+import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -10,15 +12,15 @@ import net.minecraft.world.level.PathNavigationRegion;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
-import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.Nullable;
 
 public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     private static final int JUMP = 4;
     private final Node[] cache = new Node[Direction.Plane.HORIZONTAL.length()];
+    private final Long2BooleanMap jumpCollisions = new Long2BooleanOpenHashMap();
     private final double speedFactor;
-    private double jumpXZSpeed, jumpYSpeed, gravity;
+    private double jumpXZSpeed, jumpYSpeed, gravity, jumpHeight;
 
     public DroidNodeEvaluator(double speedFactor) {
         this.speedFactor = speedFactor;
@@ -33,13 +35,48 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         }
         jumpYSpeed = mob.getAttributeValue(Attributes.JUMP_STRENGTH);
         gravity = -mob.getAttributeValue(Attributes.GRAVITY);
+        jumpHeight = Physics.getHeight(gravity, jumpYSpeed);
     }
 
-    protected int addJumps(Node[] arr, Node start, Direction dir, int step, double floor, PathType type, int i) {
-        for (int j = 2; j <= JUMP; j++) {
-            Node node = findAcceptedNode(start.x + dir.getStepX() * j, start.y, start.z + dir.getStepZ() * j, step, floor, dir, type);
-            if (node != null && isNeighborValid(node, start) && canJumpPosition(start, node, floor) && canJumpCollision(start, node, floor)) {
-                arr[i++] = node;
+    @Override
+    public void done() {
+        super.done();
+        jumpCollisions.clear();
+    }
+
+    @Override
+    protected double getMobJumpHeight() {
+        return Math.max(jumpHeight, mob.maxUpStep());
+    }
+
+    protected boolean hasJumpCollisions(int x, int y, int z) {
+        return jumpCollisions.computeIfAbsent(BlockPos.asLong(x, y, z), hash -> {
+            BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+            for (int dX = 0; dX < entityWidth; dX++) {
+                for (int dY = 0; dY < entityHeight; dY++) {
+                    for (int dZ = 0; dZ < entityDepth; dZ++) {
+                        pos.set(x + dX, y + dY, z + dZ);
+                        if (!currentContext.level().getBlockState(pos).isEmpty()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        });
+    }
+
+    protected int addJumps(Node[] arr, Node start, double floor, int i) {
+        int y = Mth.floor(floor + jumpHeight);
+        for (int x = -JUMP; x <= JUMP; x++) {
+            for (int z = -JUMP; z <= JUMP; z++) {
+                if (Math.abs(x) <= 1 && Math.abs(z) <= 1) {
+                    continue;
+                }
+                Node node = findAcceptedJumpNode(start.x + x, y, start.z + z, floor);
+                if (node != null && isNeighborValid(node, start) && canJumpPosition(start, node, floor) && canJumpCollision(start, node, floor)) {
+                    arr[i++] = node;
+                }
             }
         }
         return i;
@@ -67,8 +104,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
             int x = Mth.floor(start.x + dX * i);
             int z = Mth.floor(start.z + dZ * i);
             int y = Mth.floor(floor + Physics.getHeightFromDistance(gravity, jumpYSpeed, jumpXZSpeed, len * i / steps));
-            AABB bounds = new AABB(x, y, z, x + entityWidth, y + entityHeight + 1, z + entityDepth);
-            if (hasCollisions(bounds)) {
+            if (hasJumpCollisions(x, y, z)) {
                 return false;
             }
         }
@@ -76,42 +112,27 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     }
 
     @Nullable
-    @Override
-    protected Node findAcceptedNode(int x, int y, int z, int step, double floor, Direction dir, PathType path) {
+    protected Node findAcceptedJumpNode(int x, int y, int z, double floor) {
         Node node = null;
-        BlockPos.MutableBlockPos blockpos$mutableblockpos = new BlockPos.MutableBlockPos();
-        double d0 = this.getFloorLevel(blockpos$mutableblockpos.set(x, y, z));
-        if (d0 - floor > this.getMobJumpHeight()) {
-            return null;
-        } else {
-            PathType pathtype = this.getCachedPathType(x, y, z);
-            float f = this.mob.getPathfindingMalus(pathtype);
-            if (f >= 0) {
-                node = this.getNodeAndUpdateCostToMax(x, y, z, pathtype, f);
-            }
-
-            if (pathtype == PathType.WALKABLE || this.isAmphibious() && pathtype == PathType.WATER) {
-                return node;
-            }
-
-            if ((node == null || node.costMalus < 0.0F)
-                    && step > 0
-                    && (pathtype != PathType.FENCE || this.canWalkOverFences())
-                    && pathtype != PathType.UNPASSABLE_RAIL
-                    && pathtype != PathType.TRAPDOOR
-                    && pathtype != PathType.POWDER_SNOW) {
-                return this.tryJumpOn(x, y, z, step, floor, dir, path, blockpos$mutableblockpos);
-            } else if (!this.isAmphibious() && pathtype == PathType.WATER && !this.canFloat()) {
-                return this.tryFindFirstNonWaterBelow(x, y, z, node);
-            } else if (pathtype == PathType.OPEN) {
-                return this.tryFindFirstGroundNodeBelow(x, y, z);
-            } else if (doesBlockHavePartialCollision(pathtype) && node == null) {
-                return this.getClosedNode(x, y, z, pathtype);
-            }
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        double level = getFloorLevel(pos.set(x, y, z));
+        if (level - floor > getMobJumpHeight()) {
             return null;
         }
+        PathType type = getCachedPathType(x, y, z);
+        float cost = mob.getPathfindingMalus(type);
+        if (cost >= 0) {
+            node = getNodeAndUpdateCostToMax(x, y, z, type, cost);
+        }
+        if (!this.isAmphibious() && type == PathType.WATER && !canFloat()) {
+            return this.tryFindFirstNonWaterBelow(x, y, z, node);
+        } else if (type == PathType.OPEN) {
+            return this.tryFindFirstGroundNodeBelow(x, y, z);
+        } else if (doesBlockHavePartialCollision(type) && node == null) {
+            return this.getClosedNode(x, y, z, type);
+        }
+        return node;
     }
-
 
     @Override
     public int getNeighbors(Node[] arr, Node start) {
@@ -128,9 +149,6 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
             cache[direction.get2DDataValue()] = node;
             if (isNeighborValid(node, start)) {
                 arr[i++] = node;
-            }
-            if (step > 0) {
-                i = addJumps(arr, start, direction, step, floor, type, i);
             }
         }
         for (Direction dir1 : Direction.Plane.HORIZONTAL) {
@@ -155,6 +173,9 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
             if (isNeighborValid(node, start)) {
                 arr[i++] = node;
             }
+        }
+        if (step > 0) {
+            i = addJumps(arr, start, floor, i);
         }
         return i;
     }
