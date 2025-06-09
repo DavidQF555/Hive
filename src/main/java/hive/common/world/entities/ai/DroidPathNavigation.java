@@ -25,8 +25,9 @@ public class DroidPathNavigation extends GroundPathNavigation {
         if (!isDone()) {
             Node prev = path.getPreviousNode();
             Node node = path.getNextNode();
-            if (DroidPathfinder.isJump(prev, node) && mob.getMoveControl() instanceof DroidMoveControl control && !control.isJumping()) {
-                control.jump();
+            if (DroidPathfinder.isJump(prev, node) && mob.getMoveControl() instanceof DroidMoveControl control) {
+                Vec3 target = this.path.getNextEntityPos(mob);
+                control.jumpTowards(target.x(), getGroundY(target), target.z(), speedModifier);
             }
         }
     }

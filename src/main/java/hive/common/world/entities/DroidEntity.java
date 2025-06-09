@@ -42,7 +42,7 @@ public class DroidEntity extends PathfinderMob {
 
     @Override
     protected float getFlyingSpeed() {
-        return getSpeed();
+        return getSpeed() * 0.25f;
     }
 
     @Override
