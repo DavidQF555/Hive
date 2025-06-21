@@ -1,8 +1,8 @@
 package hive.common.world.entities.ai;
 
 import hive.common.world.Physics;
-import it.unimi.dsi.fastutil.longs.Long2BooleanMap;
-import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2BooleanMap;
+import it.unimi.dsi.fastutil.objects.Object2BooleanOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -17,8 +17,9 @@ import org.jetbrains.annotations.Nullable;
 public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     private static final int JUMP = 4;
-    private final Node[] cache = new Node[Direction.Plane.HORIZONTAL.length()];
-    private final Long2BooleanMap jumpCollisions = new Long2BooleanOpenHashMap();
+    private static final IntegerAABB.Mutable BOUNDS = new IntegerAABB.Mutable();
+    private static final Node[] cache = new Node[Direction.Plane.HORIZONTAL.length()];
+    private final Object2BooleanMap<IntegerAABB> jumpCollisions = new Object2BooleanOpenHashMap<>();
     private final double speedFactor;
     private double jumpXZSpeed, jumpYSpeed, gravity, jumpHeight;
 
@@ -49,21 +50,24 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return Math.max(jumpHeight, mob.maxUpStep());
     }
 
-    protected boolean hasJumpCollisions(int x, int y, int z) {
-        return jumpCollisions.computeIfAbsent(BlockPos.asLong(x, y, z), hash -> {
-            BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-            for (int dX = 0; dX < entityWidth; dX++) {
-                for (int dY = 0; dY < entityHeight; dY++) {
-                    for (int dZ = 0; dZ < entityDepth; dZ++) {
-                        pos.set(x + dX, y + dY, z + dZ);
-                        if (!currentContext.level().getBlockState(pos).isEmpty()) {
-                            return true;
-                        }
+    protected boolean hasJumpCollisions(IntegerAABB bounds) {
+        if (jumpCollisions.containsKey(bounds)) {
+            return jumpCollisions.getBoolean(bounds);
+        }
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int x = bounds.minX; x <= bounds.maxX; x++) {
+            for (int y = bounds.minY; y <= bounds.maxY; y++) {
+                for (int z = bounds.minZ; z <= bounds.maxZ; z++) {
+                    pos.set(x, y, z);
+                    if (!currentContext.level().getBlockState(pos).isEmpty()) {
+                        jumpCollisions.put(bounds.immutable(), true);
+                        return true;
                     }
                 }
             }
-            return false;
-        });
+        }
+        jumpCollisions.put(bounds.immutable(), false);
+        return false;
     }
 
     protected int addJumps(Node[] arr, Node start, double floor, int i) {
@@ -97,14 +101,21 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         double dX = to.x - start.x;
         double dZ = to.z - start.z;
         double len = Math.sqrt(dX * dX + dZ * dZ);
-        int steps = Mth.ceil(len / (entityDepth * entityWidth));
+        int steps = Mth.ceil(len / Math.min(entityDepth, entityWidth));
         dX /= steps;
         dZ /= steps;
-        for (int i = 1; i < steps; i++) {
-            int x = Mth.floor(start.x + dX * i);
-            int z = Mth.floor(start.z + dZ * i);
-            int y = Mth.floor(floor + Physics.getHeightFromDistance(gravity, jumpYSpeed, jumpXZSpeed, len * i / steps));
-            if (hasJumpCollisions(x, y, z)) {
+        double dT = Physics.getLandingTime(gravity, to.y - floor, jumpYSpeed).map(t -> t / steps).orElseThrow();
+        for (int i = 0; i < steps; i++) {
+            int minX = Mth.floor(start.x + dX * i);
+            int maxX = Mth.ceil(start.x + dX * i) + entityWidth - 1;
+            int minZ = Mth.floor(start.z + dZ * i);
+            int maxZ = Mth.ceil(start.z + dZ * i) + entityDepth - 1;
+            double t1 = dT * i;
+            double t2 = dT * (i + 1);
+            int minY = Mth.floor(floor + Physics.getMinHeight(gravity, jumpYSpeed, t1, t2));
+            int maxY = Mth.ceil(floor + Physics.getMaxHeight(gravity, jumpYSpeed, t1, t2)) + entityHeight - 1;
+            BOUNDS.set(minX, minY, minZ, maxX, maxY, maxZ);
+            if (hasJumpCollisions(BOUNDS)) {
                 return false;
             }
         }
