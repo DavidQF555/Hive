@@ -15,7 +15,7 @@ public class DroidPathNavigation extends GroundPathNavigation {
 
     @Override
     protected PathFinder createPathFinder(int max) {
-        nodeEvaluator = new DroidNodeEvaluator(1);
+        nodeEvaluator = new DroidNodeEvaluator(1, true);
         return new DroidPathfinder(this.nodeEvaluator, max);
     }
 

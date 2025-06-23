@@ -11,6 +11,8 @@ import java.util.Optional;
 
 public class DroidMoveControl extends MoveControl {
 
+    private static final double ERROR = 1E-7;
+    private static final double JUMP_ERROR = 0.1;
     private DroidOperation operation = DroidOperation.WAIT;
 
     public DroidMoveControl(Mob mob) {
@@ -24,12 +26,14 @@ public class DroidMoveControl extends MoveControl {
         float rot = rotlerp(mob.getYRot(), (float) (Mth.atan2(dZ, dX) * 180 / (float) Math.PI) - 90, 90);
         double len = Math.sqrt(dX * dX + dZ * dZ);
         double max = this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED);
-        if (len < 2.5000003E-7F) {
+        if (operation != DroidOperation.WAIT && len < ERROR) {
             operation = DroidOperation.WAIT;
+            mob.setSprinting(false);
         }
         if (this.operation == DroidOperation.MOVE_TO) {
             if (!mob.onGround()) {
                 operation = DroidOperation.IN_AIR;
+                mob.setSprinting(true);
             } else {
                 double speed = Math.min(len, max);
                 double tX = dX * speed / len;
@@ -41,10 +45,12 @@ public class DroidMoveControl extends MoveControl {
         if (operation == DroidOperation.START_JUMP) {
             if (!mob.onGround()) {
                 operation = DroidOperation.IN_AIR;
+                mob.setSprinting(true);
             } else {
                 Optional<Double> t = getJumpLandingTime();
                 if (t.isEmpty()) {
                     operation = DroidOperation.WAIT;
+                    mob.setSprinting(false);
                 } else {
                     double tX = dX / t.get();
                     double tZ = dZ / t.get();
@@ -59,10 +65,12 @@ public class DroidMoveControl extends MoveControl {
         if (this.operation == DroidOperation.IN_AIR) {
             if (mob.onGround()) {
                 operation = DroidOperation.WAIT;
+                mob.setSprinting(false);
             } else {
                 Optional<Double> t = getLandingTime();
                 if (t.isEmpty()) {
                     operation = DroidOperation.WAIT;
+                    mob.setSprinting(false);
                 } else {
                     mob.setYRot(rot);
                     setDeltaMovement(dX / t.get(), dZ / t.get(), max);
@@ -83,7 +91,7 @@ public class DroidMoveControl extends MoveControl {
             xSpeed -= Math.sin(rot) * 0.2;
             zSpeed += Math.cos(rot) * 0.2;
         }
-        return Math.abs(tX - xSpeed) < 0.1 && Math.abs(tZ - zSpeed) < 0.1;
+        return Math.abs(tX - xSpeed) < JUMP_ERROR && Math.abs(tZ - zSpeed) < JUMP_ERROR;
     }
 
     private void setDeltaMovement(double cX, double cZ, double speed) {
@@ -106,12 +114,12 @@ public class DroidMoveControl extends MoveControl {
             zza *= 4;
             xxa *= 4;
         }
-        if (Math.abs(zza) < 2.5000003E-7F || !Double.isFinite(zza)) {
+        if (Math.abs(zza) < ERROR || !Double.isFinite(zza)) {
             mob.setZza(0);
         } else {
             mob.setZza((float) Mth.clamp(zza, -1, 1));
         }
-        if (Math.abs(xxa) < 2.5000003E-7F || !Double.isFinite(xxa)) {
+        if (Math.abs(xxa) < ERROR || !Double.isFinite(xxa)) {
             mob.setXxa(0);
         } else {
             mob.setXxa((float) Mth.clamp(xxa, -1, 1));
@@ -121,6 +129,7 @@ public class DroidMoveControl extends MoveControl {
     public void jumpTowards(double x, double y, double z, double speed) {
         if (operation != DroidOperation.IN_AIR) {
             setWantedPosition(x, y, z, speed);
+            mob.setSprinting(true);
             operation = DroidOperation.START_JUMP;
         }
     }
@@ -142,6 +151,7 @@ public class DroidMoveControl extends MoveControl {
     public void setWantedPosition(double x, double y, double z, double speed) {
         super.setWantedPosition(x, y, z, speed);
         if (this.operation != DroidOperation.IN_AIR) {
+            mob.setSprinting(true);
             this.operation = DroidOperation.MOVE_TO;
         }
     }

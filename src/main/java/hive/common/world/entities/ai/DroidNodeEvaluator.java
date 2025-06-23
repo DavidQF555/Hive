@@ -21,17 +21,19 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     private static final Node[] cache = new Node[Direction.Plane.HORIZONTAL.length()];
     private final Object2BooleanMap<IntegerAABB> jumpCollisions = new Object2BooleanOpenHashMap<>();
     private final double speedFactor;
+    private final boolean assumeSprinting;
     private double jumpXZSpeed, jumpYSpeed, gravity, jumpHeight;
 
-    public DroidNodeEvaluator(double speedFactor) {
+    public DroidNodeEvaluator(double speedFactor, boolean assumeSprinting) {
         this.speedFactor = speedFactor;
+        this.assumeSprinting = assumeSprinting;
     }
 
     @Override
     public void prepare(PathNavigationRegion region, Mob mob) {
         super.prepare(region, mob);
         jumpXZSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor;
-        if (mob.isSprinting()) {
+        if (assumeSprinting || mob.isSprinting()) {
             jumpXZSpeed += 0.2;
         }
         jumpYSpeed = mob.getAttributeValue(Attributes.JUMP_STRENGTH);

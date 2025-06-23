@@ -30,7 +30,6 @@ public class DroidEntity extends PathfinderMob {
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
         super(type, world);
         moveControl = new DroidMoveControl(this);
-        setSprinting(true);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
