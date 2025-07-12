@@ -1,6 +1,7 @@
 package hive.common.world.entities.ai;
 
 import hive.common.world.Physics;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -36,8 +37,10 @@ public class DroidMoveControl extends MoveControl {
                 mob.setSprinting(true);
             } else {
                 double speed = Math.min(len, max);
-                double tX = dX * speed / len;
-                double tZ = dZ * speed / len;
+                BlockPos below = mob.getBlockPosBelowThatAffectsMyMovement();
+                float friction = mob.level().getBlockState(below).getFriction(mob.level(), below, mob);
+                double tX = dX * speed / len / friction;
+                double tZ = dZ * speed / len / friction;
                 mob.setYRot(rot);
                 setDeltaMovement(tX, tZ, max);
             }
@@ -135,11 +138,11 @@ public class DroidMoveControl extends MoveControl {
     }
 
     private Optional<Double> getLandingTime() {
-        return Physics.getLandingTime(-mob.getAttributeValue(Attributes.GRAVITY), this.wantedY - mob.getY(), mob.getDeltaMovement().y());
+        return Physics.getLandingTime(-mob.getEffectiveGravity(), this.wantedY - mob.getY(), mob.getDeltaMovement().y());
     }
 
     private Optional<Double> getJumpLandingTime() {
-        return Physics.getLandingTime(-mob.getAttributeValue(Attributes.GRAVITY), wantedY - mob.getY(), mob.getAttributeValue(Attributes.JUMP_STRENGTH));
+        return Physics.getLandingTime(-mob.getEffectiveGravity(), wantedY - mob.getY(), mob.getAttributeValue(Attributes.JUMP_STRENGTH));
     }
 
     @Override
