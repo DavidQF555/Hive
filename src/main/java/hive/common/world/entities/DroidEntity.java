@@ -27,6 +27,9 @@ import java.util.List;
 
 public class DroidEntity extends PathfinderMob {
 
+    public static final float FLY_MULTIPLIER = 0.2f;
+    public static final double JUMP_BOOST = 0.2;
+
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
         super(type, world);
         moveControl = new DroidMoveControl(this);
@@ -41,7 +44,7 @@ public class DroidEntity extends PathfinderMob {
 
     @Override
     protected float getFlyingSpeed() {
-        return getSpeed() * 0.25f;
+        return getSpeed() * FLY_MULTIPLIER;
     }
 
     @Override

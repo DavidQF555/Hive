@@ -7,6 +7,8 @@ import org.jetbrains.annotations.Nullable;
 
 public class DroidPathfinder extends PathFinder {
 
+    private static final float JUMP_WEIGHT = 0.8f;
+
     public DroidPathfinder(NodeEvaluator eval, int max) {
         super(eval, max);
         neighbors = new Node[128];
@@ -19,7 +21,7 @@ public class DroidPathfinder extends PathFinder {
     @Override
     protected float distance(Node n1, Node n2) {
         float base = super.distance(n1, n2);
-        return isJump(n1, n2) ? base * 0.8f : base;
+        return isJump(n1, n2) ? base * JUMP_WEIGHT : base;
     }
 
 }

@@ -1,6 +1,7 @@
 package hive.common.world.entities.ai;
 
 import hive.common.world.Physics;
+import hive.common.world.entities.DroidEntity;
 import it.unimi.dsi.fastutil.objects.Object2BooleanMap;
 import it.unimi.dsi.fastutil.objects.Object2BooleanOpenHashMap;
 import net.minecraft.core.BlockPos;
@@ -34,7 +35,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         super.prepare(region, mob);
         jumpXZSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor;
         if (assumeSprinting || mob.isSprinting()) {
-            jumpXZSpeed += 0.2;
+            jumpXZSpeed += DroidEntity.JUMP_BOOST;
         }
         jumpYSpeed = mob.getAttributeValue(Attributes.JUMP_STRENGTH);
         gravity = -mob.getAttributeValue(Attributes.GRAVITY);

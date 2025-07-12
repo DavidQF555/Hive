@@ -1,6 +1,7 @@
 package hive.common.world.entities.ai;
 
 import hive.common.world.Physics;
+import hive.common.world.entities.DroidEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Mob;
@@ -91,8 +92,8 @@ public class DroidMoveControl extends MoveControl {
         double zSpeed = speed.z();
         if (mob.isSprinting()) {
             double rot = mob.getYRot() * Math.PI / 180;
-            xSpeed -= Math.sin(rot) * 0.2;
-            zSpeed += Math.cos(rot) * 0.2;
+            xSpeed -= Math.sin(rot) * DroidEntity.JUMP_BOOST;
+            zSpeed += Math.cos(rot) * DroidEntity.JUMP_BOOST;
         }
         return Math.abs(tX - xSpeed) < JUMP_ERROR && Math.abs(tZ - zSpeed) < JUMP_ERROR;
     }
@@ -114,8 +115,8 @@ public class DroidMoveControl extends MoveControl {
             xxa *= -1;
         }
         if (!mob.onGround()) {
-            zza *= 4;
-            xxa *= 4;
+            zza /= DroidEntity.FLY_MULTIPLIER;
+            xxa /= DroidEntity.FLY_MULTIPLIER;
         }
         if (Math.abs(zza) < ERROR || !Double.isFinite(zza)) {
             mob.setZza(0);
