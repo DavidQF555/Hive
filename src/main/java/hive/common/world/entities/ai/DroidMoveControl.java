@@ -32,22 +32,11 @@ public class DroidMoveControl extends MoveControl {
             operation = DroidOperation.WAIT;
             mob.setSprinting(false);
         }
-        if (this.operation == DroidOperation.MOVE_TO) {
-            if (!mob.onGround()) {
-                operation = DroidOperation.IN_AIR;
-                mob.setSprinting(true);
-            } else {
-                double speed = Math.min(len, max);
-                BlockPos below = mob.getBlockPosBelowThatAffectsMyMovement();
-                float friction = mob.level().getBlockState(below).getFriction(mob.level(), below, mob);
-                double tX = dX * speed / len / friction;
-                double tZ = dZ * speed / len / friction;
-                mob.setYRot(rot);
-                setDeltaMovement(tX, tZ, max);
-            }
-        }
         if (operation == DroidOperation.START_JUMP) {
-            if (!mob.onGround()) {
+            if (isInSwimmableFluid()) {
+                operation = DroidOperation.MOVE_TO;
+                mob.setSprinting(true);
+            } else if (!mob.onGround()) {
                 operation = DroidOperation.IN_AIR;
                 mob.setSprinting(true);
             } else {
@@ -79,6 +68,20 @@ public class DroidMoveControl extends MoveControl {
                     mob.setYRot(rot);
                     setDeltaMovement(dX / t.get(), dZ / t.get(), max);
                 }
+            }
+        }
+        if (this.operation == DroidOperation.MOVE_TO) {
+            if (!mob.onGround() && !isInSwimmableFluid()) {
+                operation = DroidOperation.IN_AIR;
+                mob.setSprinting(true);
+            } else {
+                double speed = Math.min(len, max);
+                BlockPos below = mob.getBlockPosBelowThatAffectsMyMovement();
+                float friction = mob.level().getBlockState(below).getFriction(mob.level(), below, mob);
+                double tX = dX * speed / len / friction;
+                double tZ = dZ * speed / len / friction;
+                mob.setYRot(rot);
+                setDeltaMovement(tX, tZ, max);
             }
         }
         if (operation == DroidOperation.WAIT) {
@@ -144,6 +147,10 @@ public class DroidMoveControl extends MoveControl {
 
     private Optional<Double> getJumpLandingTime() {
         return Physics.getLandingTime(-mob.getEffectiveGravity(), wantedY - mob.getY(), mob.getAttributeValue(Attributes.JUMP_STRENGTH));
+    }
+
+    protected boolean isInSwimmableFluid() {
+        return mob.isInFluidType((fluidType, height) -> mob.canSwimInFluidType(fluidType));
     }
 
     @Override
