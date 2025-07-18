@@ -19,7 +19,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     private static final int JUMP = 4;
     private static final IntegerAABB.Mutable BOUNDS = new IntegerAABB.Mutable();
-    private static final Node[] cache = new Node[Direction.Plane.HORIZONTAL.length()];
+    private static final Node[] CACHE = new Node[Direction.Plane.HORIZONTAL.length()];
     private final Object2BooleanMap<IntegerAABB> jumpCollisions = new Object2BooleanOpenHashMap<>();
     private final double speedFactor;
     private final boolean assumeSprinting;
@@ -73,14 +73,14 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return false;
     }
 
-    protected int addJumps(Node[] arr, Node start, double floor, int i) {
-        int y = Mth.floor(floor + jumpHeight);
+    protected int addLongJumps(Node[] arr, Node start, double floor, int i) {
+        int y = Mth.floor(floor);
         for (int x = -JUMP; x <= JUMP; x++) {
             for (int z = -JUMP; z <= JUMP; z++) {
                 if (Math.abs(x) <= 1 && Math.abs(z) <= 1) {
                     continue;
                 }
-                Node node = findAcceptedJumpNode(start.x + x, y, start.z + z, floor);
+                Node node = findLongJumpNode(start.x + x, y, start.z + z, floor);
                 if (node != null && isNeighborValid(node, start) && canJumpPosition(start, node, floor) && canJumpCollision(start, node, floor)) {
                     arr[i++] = node;
                 }
@@ -111,8 +111,25 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         for (int i = 0; i < steps; i++) {
             int minX = Mth.floor(start.x + dX * i);
             int maxX = Mth.ceil(start.x + dX * i) + entityWidth - 1;
+            if (dX < 0) {
+                minX = Math.min(start.x + 1, minX);
+                maxX = Math.min(start.x + 1, maxX);
+            } else if (dX > 0) {
+                minX = Math.max(start.x - 1, minX);
+                maxX = Math.max(start.x - 1, maxX);
+            }
             int minZ = Mth.floor(start.z + dZ * i);
             int maxZ = Mth.ceil(start.z + dZ * i) + entityDepth - 1;
+            if (dZ < 0) {
+                minZ = Math.min(start.z + 1, minZ);
+                maxZ = Math.min(start.z + 1, maxZ);
+            } else if (dZ > 0) {
+                minZ = Math.max(start.z - 1, minZ);
+                maxZ = Math.max(start.z - 1, maxZ);
+            }
+            if (minX > maxX || minZ > maxZ) {
+                continue;
+            }
             double t1 = dT * i;
             double t2 = dT * (i + 1);
             int minY = Mth.floor(floor + Physics.getMinHeight(gravity, jumpYSpeed, t1, t2));
@@ -126,7 +143,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     }
 
     @Nullable
-    protected Node findAcceptedJumpNode(int x, int y, int z, double floor) {
+    protected Node findLongJumpNode(int x, int y, int z, double floor) {
         Node node = null;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         double level = getFloorLevel(pos.set(x, y, z));
@@ -138,36 +155,39 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         if (cost >= 0) {
             node = getNodeAndUpdateCostToMax(x, y, z, type, cost);
         }
-        if (!this.isAmphibious() && type == PathType.WATER && !canFloat()) {
-            return this.tryFindFirstNonWaterBelow(x, y, z, node);
+        if (!isAmphibious() && type == PathType.WATER && !canFloat()) {
+            return tryFindFirstNonWaterBelow(x, y, z, node);
         } else if (type == PathType.OPEN) {
-            return this.tryFindFirstGroundNodeBelow(x, y, z);
+            return tryFindFirstGroundNodeBelow(x, y, z);
         } else if (doesBlockHavePartialCollision(type) && node == null) {
-            return this.getClosedNode(x, y, z, type);
+            return getClosedNode(x, y, z, type);
         }
         return node;
+    }
+
+    protected boolean canJumpFrom(PathType type) {
+        return mob.getPathfindingMalus(type) >= 0 && type != PathType.STICKY_HONEY;
     }
 
     @Override
     public int getNeighbors(Node[] arr, Node start) {
         int i = 0;
         double floor = getFloorLevel(new BlockPos(start.x, start.y, start.z));
-        PathType up = getCachedPathType(start.x, start.y + 1, start.z);
         PathType type = getCachedPathType(start.x, start.y, start.z);
         int step = 0;
-        if (mob.getPathfindingMalus(up) >= 0 && type != PathType.STICKY_HONEY) {
-            step = Math.max(1, Mth.floor(mob.maxUpStep()));
+        if (canJumpFrom(type)) {
+            step = Mth.floor(Math.max(jumpHeight, mob.maxUpStep()));
         }
         for (Direction direction : Direction.Plane.HORIZONTAL) {
             Node node = findAcceptedNode(start.x + direction.getStepX(), start.y, start.z + direction.getStepZ(), step, floor, direction, type);
-            cache[direction.get2DDataValue()] = node;
+            CACHE[direction.get2DDataValue()] = node;
             if (isNeighborValid(node, start)) {
                 arr[i++] = node;
             }
         }
         for (Direction dir1 : Direction.Plane.HORIZONTAL) {
             Direction dir2 = dir1.getClockWise();
-            if (isDiagonalValid(start, cache[dir1.get2DDataValue()], cache[dir2.get2DDataValue()])) {
+            if (isDiagonalValid(start, CACHE[dir1.get2DDataValue()], CACHE[dir2.get2DDataValue()])) {
                 Node node = findAcceptedNode(
                         start.x + dir1.getStepX() + dir2.getStepX(),
                         start.y,
@@ -189,7 +209,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
             }
         }
         if (step > 0) {
-            i = addJumps(arr, start, floor, i);
+            i = addLongJumps(arr, start, floor, i);
         }
         return i;
     }
