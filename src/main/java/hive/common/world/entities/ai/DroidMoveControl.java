@@ -15,7 +15,9 @@ public class DroidMoveControl extends MoveControl {
 
     private static final double ERROR = 1E-7;
     private static final double JUMP_ERROR = 0.1;
+    private static final int JUMP_CAP = 5;
     private DroidOperation operation = DroidOperation.WAIT;
+    private int jumpDelay;
 
     public DroidMoveControl(Mob mob) {
         super(mob);
@@ -24,11 +26,12 @@ public class DroidMoveControl extends MoveControl {
     @Override
     public void tick() {
         double dX = wantedX - mob.getX();
+        double dY = wantedY - mob.getY();
         double dZ = wantedZ - mob.getZ();
         float rot = rotlerp(mob.getYRot(), (float) (Mth.atan2(dZ, dX) * 180 / (float) Math.PI) - 90, 90);
-        double len = Math.sqrt(dX * dX + dZ * dZ);
+        double dist = Math.sqrt(dX * dX + dZ * dZ + dY * dY);
         double max = this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED);
-        if (operation != DroidOperation.WAIT && len < ERROR) {
+        if (operation != DroidOperation.WAIT && dist < ERROR) {
             operation = DroidOperation.WAIT;
             mob.setSprinting(false);
         }
@@ -49,7 +52,7 @@ public class DroidMoveControl extends MoveControl {
                     double tZ = dZ / t.get();
                     mob.setYRot(rot);
                     setDeltaMovement(tX, tZ, max);
-                    if (canJump(tX, tZ)) {
+                    if (++jumpDelay > JUMP_CAP || canJump(tX, tZ)) {
                         mob.getJumpControl().jump();
                     }
                 }
@@ -75,6 +78,7 @@ public class DroidMoveControl extends MoveControl {
                 operation = DroidOperation.IN_AIR;
                 mob.setSprinting(true);
             } else {
+                double len = Math.sqrt(dX * dX + dZ * dZ);
                 double speed = Math.min(len, max);
                 BlockPos below = mob.getBlockPosBelowThatAffectsMyMovement();
                 float friction = mob.level().getBlockState(below).getFriction(mob.level(), below, mob);
@@ -87,18 +91,6 @@ public class DroidMoveControl extends MoveControl {
         if (operation == DroidOperation.WAIT) {
             setDeltaMovement(0, 0, max);
         }
-    }
-
-    protected boolean canJump(double tX, double tZ) {
-        Vec3 speed = mob.getDeltaMovement();
-        double xSpeed = speed.x();
-        double zSpeed = speed.z();
-        if (mob.isSprinting()) {
-            double rot = mob.getYRot() * Math.PI / 180;
-            xSpeed -= Math.sin(rot) * DroidEntity.JUMP_BOOST;
-            zSpeed += Math.cos(rot) * DroidEntity.JUMP_BOOST;
-        }
-        return Math.abs(tX - xSpeed) < JUMP_ERROR && Math.abs(tZ - zSpeed) < JUMP_ERROR;
     }
 
     private void setDeltaMovement(double cX, double cZ, double speed) {
@@ -133,8 +125,21 @@ public class DroidMoveControl extends MoveControl {
         }
     }
 
+    protected boolean canJump(double tX, double tZ) {
+        Vec3 speed = mob.getDeltaMovement();
+        double xSpeed = speed.x();
+        double zSpeed = speed.z();
+        if (mob.isSprinting()) {
+            double rot = mob.getYRot() * Math.PI / 180;
+            xSpeed -= Math.sin(rot) * DroidEntity.JUMP_BOOST;
+            zSpeed += Math.cos(rot) * DroidEntity.JUMP_BOOST;
+        }
+        return Math.abs(tX - xSpeed) < JUMP_ERROR && Math.abs(tZ - zSpeed) < JUMP_ERROR;
+    }
+
     public void jumpTowards(double x, double y, double z, double speed) {
-        if (operation != DroidOperation.IN_AIR) {
+        if (operation != DroidOperation.START_JUMP && operation != DroidOperation.IN_AIR) {
+            jumpDelay = 0;
             setWantedPosition(x, y, z, speed);
             mob.setSprinting(true);
             operation = DroidOperation.START_JUMP;
@@ -146,7 +151,7 @@ public class DroidMoveControl extends MoveControl {
     }
 
     private Optional<Double> getJumpLandingTime() {
-        return Physics.getLandingTime(-mob.getEffectiveGravity(), wantedY - mob.getY(), mob.getAttributeValue(Attributes.JUMP_STRENGTH));
+        return Physics.getLandingTime(-mob.getEffectiveGravity(), wantedY - mob.getY(), mob.getAttributeValue(Attributes.JUMP_STRENGTH) + mob.getJumpBoostPower());
     }
 
     protected boolean isInSwimmableFluid() {
@@ -161,7 +166,7 @@ public class DroidMoveControl extends MoveControl {
     @Override
     public void setWantedPosition(double x, double y, double z, double speed) {
         super.setWantedPosition(x, y, z, speed);
-        if (this.operation != DroidOperation.IN_AIR) {
+        if (this.operation != DroidOperation.IN_AIR && operation != DroidOperation.START_JUMP) {
             mob.setSprinting(true);
             this.operation = DroidOperation.MOVE_TO;
         }

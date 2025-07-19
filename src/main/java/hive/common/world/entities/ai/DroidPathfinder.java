@@ -7,11 +7,12 @@ import org.jetbrains.annotations.Nullable;
 
 public class DroidPathfinder extends PathFinder {
 
+    private static final int SIZE = DroidNodeEvaluator.getMinCacheSize(DroidPathNavigation.JUMP_WIDTH);
     private static final float JUMP_WEIGHT = 0.8f;
 
     public DroidPathfinder(NodeEvaluator eval, int max) {
         super(eval, max);
-        neighbors = new Node[128];
+        neighbors = new Node[SIZE];
     }
 
     public static boolean isJump(@Nullable Node prev, Node next) {

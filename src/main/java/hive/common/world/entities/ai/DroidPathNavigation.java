@@ -9,13 +9,15 @@ import net.minecraft.world.phys.Vec3;
 
 public class DroidPathNavigation extends GroundPathNavigation {
 
+    public static final int JUMP_WIDTH = 5;
+
     public DroidPathNavigation(DroidEntity entity, Level world) {
         super(entity, world);
     }
 
     @Override
     protected PathFinder createPathFinder(int max) {
-        nodeEvaluator = new DroidNodeEvaluator(1, true);
+        nodeEvaluator = new DroidNodeEvaluator(1, true, JUMP_WIDTH);
         return new DroidPathfinder(this.nodeEvaluator, max);
     }
 
