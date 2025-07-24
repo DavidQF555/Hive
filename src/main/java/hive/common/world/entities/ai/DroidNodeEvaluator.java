@@ -23,7 +23,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     private final double speedFactor;
     private final boolean assumeSprinting;
     private final int jumpWidth;
-    private double jumpXZSpeed, jumpYSpeed, gravity, jumpHeight;
+    private double jumpXZSpeed, jumpYSpeed, gravity, jumpHeight, maxFall;
 
     public DroidNodeEvaluator(double speedFactor, boolean assumeSprinting, int jumpWidth) {
         this.speedFactor = speedFactor;
@@ -32,7 +32,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     }
 
     public static int getMinCacheSize(int width) {
-        return 10 + (width * 2 + 1) * (width * 2 + 1) - 1;
+        return 9 + (width * 2 + 1) * (width * 2 + 1);
     }
 
     @Override
@@ -45,6 +45,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         jumpYSpeed = mob.getAttributeValue(Attributes.JUMP_STRENGTH) + mob.getJumpBoostPower();
         gravity = -mob.getAttributeValue(Attributes.GRAVITY);
         jumpHeight = Physics.getHeight(gravity, jumpYSpeed);
+        maxFall = mob.getAttributeValue(Attributes.SAFE_FALL_DISTANCE);
     }
 
     @Override
@@ -58,6 +59,24 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         int y = Mth.floor(floor + getMobJumpHeight());
         Node node = tryFindFirstGroundNodeBelow(x, y + 1, z);
         if (isNeighborValid(node, start) && canJumpPosition(start, node, floor) && canJumpCollision(start, node, floor)) {
+            return node;
+        }
+        return null;
+    }
+
+    @Nullable
+    protected Node getCloseJumpNode(Node start, int x, int z, double floor) {
+        Node node = getJumpNode(start, x, z, floor);
+        if (node == null || node.y <= start.y) {
+            return null;
+        }
+        return node;
+    }
+
+    @Nullable
+    protected Node getWalkNode(Node start, int x, int z, double floor) {
+        Node node = tryFindFirstGroundNodeBelow(x, start.y + 1, z);
+        if (isNeighborValid(node, start) && floor - node.y <= maxFall) {
             return node;
         }
         return null;
@@ -94,7 +113,12 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
                 if (x == 0 && z == 0) {
                     continue;
                 }
-                Node node = getJumpNode(start, start.x + x, start.z + z, floor);
+                Node node;
+                if (Math.abs(x) == 1 || Math.abs(z) == 1) {
+                    node = getCloseJumpNode(start, start.x + x, start.z + z, floor);
+                } else {
+                    node = getJumpNode(start, start.x + x, start.z + z, floor);
+                }
                 if (node != null) {
                     arr[i++] = node;
                 }
@@ -157,6 +181,26 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return mob.getPathfindingMalus(type) >= 0 && type != PathType.STICKY_HONEY && type != PathType.WATER && type != PathType.LAVA;
     }
 
+    protected int addWalks(Node[] arr, Node start, int i, double floor) {
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            Node node = getWalkNode(start, start.x + direction.getStepX(), start.z + direction.getStepZ(), floor);
+            if (node != null) {
+                arr[i++] = node;
+            }
+            CACHE[direction.get2DDataValue()] = node;
+        }
+        for (Direction dir1 : Direction.Plane.HORIZONTAL) {
+            Direction dir2 = dir1.getClockWise();
+            if (isDiagonalValid(start, CACHE[dir1.get2DDataValue()], CACHE[dir2.get2DDataValue()])) {
+                Node node = getWalkNode(start, start.x + dir1.getStepX() + dir2.getStepX(), start.z + dir1.getStepZ() + dir2.getStepZ(), floor);
+                if (isDiagonalValid(node)) {
+                    arr[i++] = node;
+                }
+            }
+        }
+        return i;
+    }
+
     @Override
     public int getNeighbors(Node[] arr, Node start) {
         int i = 0;
@@ -166,30 +210,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         if (canJumpFrom(type)) {
             step = Mth.floor(getMobJumpHeight());
         }
-        for (Direction direction : Direction.Plane.HORIZONTAL) {
-            Node node = findAcceptedNode(start.x + direction.getStepX(), start.y, start.z + direction.getStepZ(), step, floor, direction, type);
-            CACHE[direction.get2DDataValue()] = node;
-            if (isNeighborValid(node, start)) {
-                arr[i++] = node;
-            }
-        }
-        for (Direction dir1 : Direction.Plane.HORIZONTAL) {
-            Direction dir2 = dir1.getClockWise();
-            if (isDiagonalValid(start, CACHE[dir1.get2DDataValue()], CACHE[dir2.get2DDataValue()])) {
-                Node node = findAcceptedNode(
-                        start.x + dir1.getStepX() + dir2.getStepX(),
-                        start.y,
-                        start.z + dir1.getStepZ() + dir2.getStepZ(),
-                        step,
-                        floor,
-                        dir1,
-                        type
-                );
-                if (isDiagonalValid(node)) {
-                    arr[i++] = node;
-                }
-            }
-        }
+        i = addWalks(arr, start, i, floor);
         for (Direction direction : Direction.Plane.VERTICAL) {
             Node node = findAcceptedNode(start.x, start.y + direction.getStepY(), start.z, step, floor, direction, type);
             if (isNeighborValid(node, start)) {
