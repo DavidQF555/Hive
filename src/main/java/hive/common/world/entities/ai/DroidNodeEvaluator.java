@@ -83,6 +83,29 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     }
 
     @Override
+    protected boolean isNeighborValid(@Nullable Node target, Node start) {
+        return target != null && !target.closed && target.costMalus >= 0;
+    }
+
+    @Nullable
+    protected Node getUpNode(Node start, double floor) {
+        Node node = tryFindFirstGroundNodeBelow(start.x, Mth.floor(floor + getMobJumpHeight()) + 1, start.z);
+        if (isNeighborValid(node, start) && node.y - start.y <= entityHeight && node.y > start.y) {
+            return node;
+        }
+        return null;
+    }
+
+    @Nullable
+    protected Node getDownNode(Node start) {
+        Node node = tryFindFirstGroundNodeBelow(start.x, start.y, start.z);
+        if (isNeighborValid(node, start)) {
+            return node;
+        }
+        return null;
+    }
+
+    @Override
     protected double getMobJumpHeight() {
         return Math.max(jumpHeight, mob.maxUpStep());
     }
@@ -178,7 +201,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     }
 
     protected boolean canJumpFrom(PathType type) {
-        return mob.getPathfindingMalus(type) >= 0 && type != PathType.STICKY_HONEY && type != PathType.WATER && type != PathType.LAVA;
+        return type != PathType.STICKY_HONEY && type != PathType.WATER && type != PathType.LAVA;
     }
 
     protected int addWalks(Node[] arr, Node start, int i, double floor) {
@@ -205,19 +228,17 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     public int getNeighbors(Node[] arr, Node start) {
         int i = 0;
         double floor = getFloorLevel(new BlockPos(start.x, start.y, start.z));
-        PathType type = getCachedPathType(start.x, start.y, start.z);
-        int step = 0;
-        if (canJumpFrom(type)) {
-            step = Mth.floor(getMobJumpHeight());
+        Node down = getDownNode(start);
+        if (down != null) {
+            arr[i++] = down;
         }
         i = addWalks(arr, start, i, floor);
-        for (Direction direction : Direction.Plane.VERTICAL) {
-            Node node = findAcceptedNode(start.x, start.y + direction.getStepY(), start.z, step, floor, direction, type);
-            if (isNeighborValid(node, start)) {
-                arr[i++] = node;
+        PathType type = getCachedPathType(start.x, start.y, start.z);
+        if (canJumpFrom(type) && getMobJumpHeight() >= 1) {
+            Node up = getUpNode(start, floor);
+            if (up != null) {
+                arr[i++] = up;
             }
-        }
-        if (step > 0) {
             i = addJumps(arr, start, floor, i);
         }
         return i;
