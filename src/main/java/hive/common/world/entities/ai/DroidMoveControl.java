@@ -25,13 +25,17 @@ public class DroidMoveControl extends MoveControl {
 
     @Override
     public void tick() {
+        double max = this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED);
+        if (operation == DroidOperation.WAIT) {
+            setDeltaMovement(0, 0, max);
+            return;
+        }
         double dX = wantedX - mob.getX();
         double dY = wantedY - mob.getY();
         double dZ = wantedZ - mob.getZ();
         float rot = rotlerp(mob.getYRot(), (float) (Mth.atan2(dZ, dX) * 180 / (float) Math.PI) - 90, 90);
         double dist = Math.sqrt(dX * dX + dZ * dZ + dY * dY);
-        double max = this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED);
-        if (operation != DroidOperation.WAIT && dist < ERROR) {
+        if (dist < ERROR) {
             operation = DroidOperation.WAIT;
             mob.setSprinting(false);
         }
@@ -87,9 +91,6 @@ public class DroidMoveControl extends MoveControl {
                 mob.setYRot(rot);
                 setDeltaMovement(tX, tZ, max);
             }
-        }
-        if (operation == DroidOperation.WAIT) {
-            setDeltaMovement(0, 0, max);
         }
     }
 
