@@ -6,13 +6,15 @@ A Minecraft mod that adds new mobs.
 
 Must complete before release:
 
-- Better pathing and collision detection for jumps
+- Better neighbor node algorithm
 - Better stuck detection and path recalculations
+- Better pathing towards moving targets
 - Textures and logo
 
 Eventually:
 
 - Falls without jumping
+- Positioning more accurately before jumps
 - Collective droid strategies
 - Droid swimming
 - Droid attack spacing
