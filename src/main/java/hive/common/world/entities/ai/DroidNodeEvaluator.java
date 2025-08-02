@@ -23,7 +23,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     private final double speedFactor;
     private final boolean assumeSprinting;
     private final int jumpWidth;
-    private double jumpXZSpeed, jumpYSpeed, gravity, jumpHeight, maxFall;
+    private double jumpXZSpeed, jumpYSpeed, gravity, jumpHeight;
 
     public DroidNodeEvaluator(double speedFactor, boolean assumeSprinting, int jumpWidth) {
         this.speedFactor = speedFactor;
@@ -45,7 +45,6 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         jumpYSpeed = mob.getAttributeValue(Attributes.JUMP_STRENGTH) + mob.getJumpBoostPower();
         gravity = -mob.getAttributeValue(Attributes.GRAVITY);
         jumpHeight = Physics.getHeight(gravity, jumpYSpeed);
-        maxFall = mob.getAttributeValue(Attributes.SAFE_FALL_DISTANCE);
     }
 
     @Override
@@ -57,7 +56,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     @Nullable
     protected Node getJumpNode(Node start, int x, int z, double floor) {
         int y = Mth.floor(floor + getMobJumpHeight());
-        Node node = tryFindFirstGroundNodeBelow(x, y + 1, z);
+        Node node = tryFindFirstGroundNode(x, y, z, mob.getMaxFallDistance(), false);
         if (isNeighborValid(node, start) && canJumpPosition(start, node, floor) && canJumpCollision(start, node, floor)) {
             return node;
         }
@@ -66,17 +65,19 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     @Nullable
     protected Node getCloseJumpNode(Node start, int x, int z, double floor) {
-        Node node = getJumpNode(start, x, z, floor);
-        if (node == null || node.y <= start.y) {
-            return null;
+        int y = Mth.floor(floor + getMobJumpHeight());
+        int dif = Math.min(y - start.y - 1, mob.getMaxFallDistance());
+        Node node = tryFindFirstGroundNode(x, y, z, dif, false);
+        if (isNeighborValid(node, start) && canJumpPosition(start, node, floor) && canJumpCollision(start, node, floor)) {
+            return node;
         }
-        return node;
+        return null;
     }
 
     @Nullable
-    protected Node getWalkNode(Node start, int x, int z, double floor) {
-        Node node = tryFindFirstGroundNodeBelow(x, start.y + 1, z);
-        if (isNeighborValid(node, start) && floor - node.y <= maxFall) {
+    protected Node getWalkNode(Node start, int x, int z) {
+        Node node = tryFindFirstGroundNode(x, start.y, z, mob.getMaxFallDistance(), true);
+        if (isNeighborValid(node, start)) {
             return node;
         }
         return null;
@@ -89,8 +90,10 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     @Nullable
     protected Node getUpNode(Node start, double floor) {
-        Node node = tryFindFirstGroundNodeBelow(start.x, Mth.floor(floor + getMobJumpHeight()) + 1, start.z);
-        if (isNeighborValid(node, start) && node.y - start.y <= entityHeight && node.y > start.y) {
+        int startY = Math.min(Mth.floor(floor + getMobJumpHeight()), start.y + entityHeight);
+        int dif = startY - start.y - 1;
+        Node node = tryFindFirstGroundNode(start.x, startY, start.z, dif, true);
+        if (isNeighborValid(node, start)) {
             return node;
         }
         return null;
@@ -98,11 +101,28 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     @Nullable
     protected Node getDownNode(Node start) {
-        Node node = tryFindFirstGroundNodeBelow(start.x, start.y, start.z);
+        int dif = start.y - mob.level().getMinY() - 1;
+        Node node = tryFindFirstGroundNode(start.x, start.y - 1, start.z, dif, true);
         if (isNeighborValid(node, start)) {
             return node;
         }
         return null;
+    }
+
+    protected Node tryFindFirstGroundNode(int x, int y, int z, int maxDown, boolean stopOnFirst) {
+        int min = Math.max(mob.level().getMinY(), y - maxDown);
+        for (int i = Math.min(mob.level().getMaxY(), y); i >= min; i--) {
+            PathType path = getCachedPathType(x, i, z);
+            float malus = mob.getPathfindingMalus(path);
+            if (path != PathType.OPEN) {
+                if (malus >= 0) {
+                    return getNodeAndUpdateCostToMax(x, i, z, path, malus);
+                } else if (stopOnFirst) {
+                    return getBlockedNode(x, i, z);
+                }
+            }
+        }
+        return getBlockedNode(x, y, z);
     }
 
     @Override
@@ -204,9 +224,9 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return type != PathType.STICKY_HONEY && type != PathType.WATER && type != PathType.LAVA;
     }
 
-    protected int addWalks(Node[] arr, Node start, int i, double floor) {
+    protected int addWalks(Node[] arr, Node start, int i) {
         for (Direction direction : Direction.Plane.HORIZONTAL) {
-            Node node = getWalkNode(start, start.x + direction.getStepX(), start.z + direction.getStepZ(), floor);
+            Node node = getWalkNode(start, start.x + direction.getStepX(), start.z + direction.getStepZ());
             if (node != null) {
                 arr[i++] = node;
             }
@@ -215,7 +235,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         for (Direction dir1 : Direction.Plane.HORIZONTAL) {
             Direction dir2 = dir1.getClockWise();
             if (isDiagonalValid(start, CACHE[dir1.get2DDataValue()], CACHE[dir2.get2DDataValue()])) {
-                Node node = getWalkNode(start, start.x + dir1.getStepX() + dir2.getStepX(), start.z + dir1.getStepZ() + dir2.getStepZ(), floor);
+                Node node = getWalkNode(start, start.x + dir1.getStepX() + dir2.getStepX(), start.z + dir1.getStepZ() + dir2.getStepZ());
                 if (isDiagonalValid(node)) {
                     arr[i++] = node;
                 }
@@ -232,7 +252,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         if (down != null) {
             arr[i++] = down;
         }
-        i = addWalks(arr, start, i, floor);
+        i = addWalks(arr, start, i);
         PathType type = getCachedPathType(start.x, start.y, start.z);
         if (canJumpFrom(type) && getMobJumpHeight() >= 1) {
             Node up = getUpNode(start, floor);
