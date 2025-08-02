@@ -36,21 +36,17 @@ public class DroidMoveControl extends MoveControl {
         float rot = rotlerp(mob.getYRot(), (float) (Mth.atan2(dZ, dX) * 180 / (float) Math.PI) - 90, 90);
         double dist = Math.sqrt(dX * dX + dZ * dZ + dY * dY);
         if (dist < ERROR) {
-            operation = DroidOperation.WAIT;
-            mob.setSprinting(false);
+            setOperation(DroidOperation.WAIT);
         }
         if (operation == DroidOperation.START_JUMP) {
             if (isInSwimmableFluid()) {
-                operation = DroidOperation.MOVE_TO;
-                mob.setSprinting(true);
+                setOperation(DroidOperation.MOVE_TO);
             } else if (!mob.onGround()) {
-                operation = DroidOperation.IN_AIR;
-                mob.setSprinting(true);
+                setOperation(DroidOperation.IN_AIR);
             } else {
                 Optional<Double> t = getJumpLandingTime();
                 if (t.isEmpty()) {
-                    operation = DroidOperation.WAIT;
-                    mob.setSprinting(false);
+                    setOperation(DroidOperation.WAIT);
                 } else {
                     double tX = dX / t.get();
                     double tZ = dZ / t.get();
@@ -64,13 +60,11 @@ public class DroidMoveControl extends MoveControl {
         }
         if (this.operation == DroidOperation.IN_AIR) {
             if (mob.onGround()) {
-                operation = DroidOperation.WAIT;
-                mob.setSprinting(false);
+                setOperation(DroidOperation.WAIT);
             } else {
                 Optional<Double> t = getLandingTime();
                 if (t.isEmpty()) {
-                    operation = DroidOperation.WAIT;
-                    mob.setSprinting(false);
+                    setOperation(DroidOperation.WAIT);
                 } else {
                     mob.setYRot(rot);
                     setDeltaMovement(dX / t.get(), dZ / t.get(), max);
@@ -79,8 +73,7 @@ public class DroidMoveControl extends MoveControl {
         }
         if (this.operation == DroidOperation.MOVE_TO) {
             if (!mob.onGround() && !isInSwimmableFluid()) {
-                operation = DroidOperation.IN_AIR;
-                mob.setSprinting(true);
+                setOperation(DroidOperation.IN_AIR);
             } else {
                 double len = Math.sqrt(dX * dX + dZ * dZ);
                 double speed = Math.min(len, max);
@@ -126,6 +119,13 @@ public class DroidMoveControl extends MoveControl {
         }
     }
 
+    protected void setOperation(DroidOperation operation) {
+        if (operation != this.operation) {
+            this.operation = operation;
+            mob.setSprinting(operation != DroidOperation.WAIT);
+        }
+    }
+
     protected boolean canJump(double tX, double tZ) {
         Vec3 speed = mob.getDeltaMovement();
         double xSpeed = speed.x();
@@ -142,8 +142,7 @@ public class DroidMoveControl extends MoveControl {
         if (operation != DroidOperation.START_JUMP && operation != DroidOperation.IN_AIR) {
             jumpDelay = 0;
             setWantedPosition(x, y, z, speed);
-            mob.setSprinting(true);
-            operation = DroidOperation.START_JUMP;
+            setOperation(DroidOperation.START_JUMP);
         }
     }
 
@@ -168,12 +167,11 @@ public class DroidMoveControl extends MoveControl {
     public void setWantedPosition(double x, double y, double z, double speed) {
         super.setWantedPosition(x, y, z, speed);
         if (this.operation != DroidOperation.IN_AIR && operation != DroidOperation.START_JUMP) {
-            mob.setSprinting(true);
-            this.operation = DroidOperation.MOVE_TO;
+            setOperation(DroidOperation.MOVE_TO);
         }
     }
 
-    private enum DroidOperation {
+    protected enum DroidOperation {
         WAIT(),
         MOVE_TO(),
         IN_AIR(),
