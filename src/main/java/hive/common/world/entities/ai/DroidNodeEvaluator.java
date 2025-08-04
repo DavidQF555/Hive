@@ -12,6 +12,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.PathNavigationRegion;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.PathType;
+import net.minecraft.world.level.pathfinder.PathfindingContext;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 import org.jetbrains.annotations.Nullable;
 
@@ -242,6 +243,27 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
             }
         }
         return i;
+    }
+
+    @Override
+    public PathType getPathType(PathfindingContext context, int x, int y, int z) {
+        PathType path = context.getPathTypeFromState(x, y, z);
+        if (path == PathType.OPEN && y >= context.level().getMinY() + 1) {
+            return switch (context.getPathTypeFromState(x, y - 1, z)) {
+                case OPEN, WATER, LAVA, WALKABLE -> PathType.OPEN;
+                case DAMAGE_FIRE -> PathType.DAMAGE_FIRE;
+                case DAMAGE_OTHER -> PathType.DAMAGE_OTHER;
+                case STICKY_HONEY -> PathType.STICKY_HONEY;
+                case POWDER_SNOW -> PathType.DANGER_POWDER_SNOW;
+                case DAMAGE_CAUTIOUS -> PathType.DAMAGE_CAUTIOUS;
+                case TRAPDOOR -> PathType.DANGER_TRAPDOOR;
+                default -> checkNeighbourBlocks(context, x, y, z, PathType.WALKABLE);
+            };
+        } else if (path == PathType.STICKY_HONEY) {
+            return PathType.BLOCKED;
+        } else {
+            return path;
+        }
     }
 
     @Override
