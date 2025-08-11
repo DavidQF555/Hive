@@ -63,6 +63,12 @@ public class DroidEntity extends PathfinderMob {
     @Override
     protected void customServerAiStep(ServerLevel world) {
         super.customServerAiStep(world);
+        if (getMoveControl() instanceof DroidMoveControl control) {
+            boolean sprint = control.shouldSprint();
+            if (sprint != isSprinting()) {
+                setSprinting(sprint);
+            }
+        }
         if (world.getGameTime() % 20 == 0) {
             Path path = getNavigation().getPath();
             if (path != null) {

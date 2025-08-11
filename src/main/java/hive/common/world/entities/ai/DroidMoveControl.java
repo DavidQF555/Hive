@@ -39,23 +39,25 @@ public class DroidMoveControl extends MoveControl {
             setOperation(DroidOperation.WAIT);
         }
         if (operation == DroidOperation.START_JUMP) {
-            if (isInSwimmableFluid()) {
-                setOperation(DroidOperation.MOVE_TO);
-            } else if (!mob.onGround()) {
-                setOperation(DroidOperation.IN_AIR);
-            } else {
-                Optional<Double> t = getJumpLandingTime();
-                if (t.isEmpty()) {
-                    setOperation(DroidOperation.WAIT);
+            if (mob.onGround()) {
+                if (isInSwimmableFluid() && !canJumpFluid()) {
+                    setOperation(DroidOperation.MOVE_TO);
                 } else {
-                    double tX = dX / t.get();
-                    double tZ = dZ / t.get();
-                    mob.setYRot(rot);
-                    setDeltaMovement(tX, tZ, max);
-                    if (++jumpDelay > JUMP_CAP || canJump(tX, tZ)) {
-                        mob.getJumpControl().jump();
+                    Optional<Double> t = getJumpLandingTime();
+                    if (t.isEmpty()) {
+                        setOperation(DroidOperation.WAIT);
+                    } else {
+                        double tX = dX / t.get();
+                        double tZ = dZ / t.get();
+                        mob.setYRot(rot);
+                        setDeltaMovement(tX, tZ, max);
+                        if (++jumpDelay > JUMP_CAP || canJump(tX, tZ)) {
+                            mob.getJumpControl().jump();
+                        }
                     }
                 }
+            } else {
+                setOperation(DroidOperation.IN_AIR);
             }
         }
         if (this.operation == DroidOperation.IN_AIR) {
@@ -119,11 +121,12 @@ public class DroidMoveControl extends MoveControl {
         }
     }
 
+    public boolean shouldSprint() {
+        return operation != DroidOperation.WAIT && !isInSwimmableFluid() && (!mob.isInWater() || mob.isUnderWater());
+    }
+
     protected void setOperation(DroidOperation operation) {
-        if (operation != this.operation) {
-            this.operation = operation;
-            mob.setSprinting(operation != DroidOperation.WAIT);
-        }
+        this.operation = operation;
     }
 
     protected boolean canJump(double tX, double tZ) {
@@ -156,6 +159,10 @@ public class DroidMoveControl extends MoveControl {
 
     protected boolean isInSwimmableFluid() {
         return mob.isInFluidType((fluidType, height) -> mob.canSwimInFluidType(fluidType));
+    }
+
+    protected boolean canJumpFluid() {
+        return mob.level().getFluidState(mob.blockPosition()).getHeight(mob.level(), mob.blockPosition()) <= mob.getFluidJumpThreshold();
     }
 
     @Override

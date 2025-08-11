@@ -10,6 +10,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.PathNavigationRegion;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.level.pathfinder.PathfindingContext;
@@ -40,12 +41,16 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     public void prepare(PathNavigationRegion region, Mob mob) {
         super.prepare(region, mob);
         jumpXZSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor;
-        if (assumeSprinting || mob.isSprinting()) {
-            jumpXZSpeed += DroidEntity.JUMP_BOOST;
-        }
         jumpYSpeed = mob.getAttributeValue(Attributes.JUMP_STRENGTH) + mob.getJumpBoostPower();
         gravity = -mob.getAttributeValue(Attributes.GRAVITY);
         jumpHeight = Physics.getHeight(gravity, jumpYSpeed);
+    }
+
+    protected double getJumpXZSpeed(boolean canSprint) {
+        if (canSprint && (assumeSprinting || mob.isSprinting())) {
+            return jumpXZSpeed + DroidEntity.JUMP_BOOST;
+        }
+        return jumpXZSpeed;
     }
 
     @Override
@@ -55,21 +60,21 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     }
 
     @Nullable
-    protected Node getJumpNode(Node start, int x, int z, double floor) {
+    protected Node getJumpNode(Node start, int x, int z, double floor, boolean canSprint) {
         int y = Mth.floor(floor + getMobJumpHeight());
         Node node = tryFindFirstGroundNode(x, y, z, mob.getMaxFallDistance(), false);
-        if (isNeighborValid(node, start) && canJumpPosition(start, node, floor) && canJumpCollision(start, node, floor)) {
+        if (isNeighborValid(node, start) && canJumpPosition(start, node, floor, canSprint) && canJumpCollision(start, node, floor)) {
             return node;
         }
         return null;
     }
 
     @Nullable
-    protected Node getCloseJumpNode(Node start, int x, int z, double floor) {
+    protected Node getCloseJumpNode(Node start, int x, int z, double floor, boolean canSprint) {
         int y = Mth.floor(floor + getMobJumpHeight());
         int dif = Math.min(y - start.y - 1, mob.getMaxFallDistance());
         Node node = tryFindFirstGroundNode(x, y, z, dif, false);
-        if (isNeighborValid(node, start) && canJumpPosition(start, node, floor) && canJumpCollision(start, node, floor)) {
+        if (isNeighborValid(node, start) && canJumpPosition(start, node, floor, canSprint) && canJumpCollision(start, node, floor)) {
             return node;
         }
         return null;
@@ -132,13 +137,16 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     }
 
     protected boolean hasJumpCollisions(IntegerAABB bounds) {
+        if (bounds.isEmpty()) {
+            return false;
+        }
         if (jumpCollisions.containsKey(bounds)) {
             return jumpCollisions.getBoolean(bounds);
         }
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int x = bounds.minX; x <= bounds.maxX; x++) {
-            for (int y = bounds.minY; y <= bounds.maxY; y++) {
-                for (int z = bounds.minZ; z <= bounds.maxZ; z++) {
+        for (int x = bounds.minX; x < bounds.maxX; x++) {
+            for (int y = bounds.minY; y < bounds.maxY; y++) {
+                for (int z = bounds.minZ; z < bounds.maxZ; z++) {
                     pos.set(x, y, z);
                     if (!currentContext.level().getBlockState(pos).isEmpty()) {
                         jumpCollisions.put(bounds.immutable(), true);
@@ -151,7 +159,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return false;
     }
 
-    protected int addJumps(Node[] arr, Node start, double floor, int i) {
+    protected int addJumps(Node[] arr, Node start, double floor, int i, boolean canSprint) {
         for (int x = -jumpWidth; x <= jumpWidth; x++) {
             for (int z = -jumpWidth; z <= jumpWidth; z++) {
                 if (x == 0 && z == 0) {
@@ -159,9 +167,9 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
                 }
                 Node node;
                 if (Math.abs(x) == 1 || Math.abs(z) == 1) {
-                    node = getCloseJumpNode(start, start.x + x, start.z + z, floor);
+                    node = getCloseJumpNode(start, start.x + x, start.z + z, floor, canSprint);
                 } else {
-                    node = getJumpNode(start, start.x + x, start.z + z, floor);
+                    node = getJumpNode(start, start.x + x, start.z + z, floor, canSprint);
                 }
                 if (node != null) {
                     arr[i++] = node;
@@ -171,58 +179,65 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return i;
     }
 
-    protected boolean canJumpPosition(Node start, Node to, double floor) {
+    protected boolean canJumpPosition(Node start, Node to, double floor, boolean canSprint) {
         double distH = start.distanceToXZ(to) - 1;
-        double diff = to.y - floor;
+        double toFloor = getFloorLevel(new BlockPos(to.x, to.y, to.z));
+        double diff = toFloor - floor;
         return Physics.getLandingTime(gravity, diff, jumpYSpeed)
-                .map(time -> time * jumpXZSpeed > distH)
+                .map(time -> time * getJumpXZSpeed(canSprint) > distH)
                 .orElse(false);
     }
 
+    // can try to make more elegant
     protected boolean canJumpCollision(Node start, Node to, double floor) {
         double dX = to.x - start.x;
         double dZ = to.z - start.z;
+        double toFloor = getFloorLevel(new BlockPos(to.x, to.y, to.z));
+        IntegerAABB bounds = new IntegerAABB(start.x, start.y, start.z, start.x + entityWidth, start.y + entityHeight, start.z + entityDepth);
         double len = Math.sqrt(dX * dX + dZ * dZ);
         int steps = Mth.ceil(len / Math.min(entityDepth, entityWidth));
         dX /= steps;
         dZ /= steps;
-        double dT = Physics.getLandingTime(gravity, to.y - floor, jumpYSpeed).map(t -> t / steps).orElseThrow();
+        double dT = Physics.getLandingTime(gravity, toFloor - floor, jumpYSpeed).map(t -> t / steps).orElseThrow();
         for (int i = 0; i < steps; i++) {
             int minX = Mth.floor(start.x + dX * i);
-            int maxX = Mth.ceil(start.x + dX * i) + entityWidth - 1;
+            int maxX = Mth.ceil(start.x + dX * i) + entityWidth;
             if (dX < 0) {
                 minX = Math.min(start.x + 1, minX);
-                maxX = Math.min(start.x + 1, maxX);
+                maxX = Math.min(start.x + 2, maxX);
             } else if (dX > 0) {
                 minX = Math.max(start.x - 1, minX);
-                maxX = Math.max(start.x - 1, maxX);
+                maxX = Math.max(start.x, maxX);
             }
             int minZ = Mth.floor(start.z + dZ * i);
-            int maxZ = Mth.ceil(start.z + dZ * i) + entityDepth - 1;
+            int maxZ = Mth.ceil(start.z + dZ * i) + entityDepth;
             if (dZ < 0) {
                 minZ = Math.min(start.z + 1, minZ);
-                maxZ = Math.min(start.z + 1, maxZ);
+                maxZ = Math.min(start.z + 2, maxZ);
             } else if (dZ > 0) {
                 minZ = Math.max(start.z - 1, minZ);
-                maxZ = Math.max(start.z - 1, maxZ);
-            }
-            if (minX > maxX || minZ > maxZ) {
-                continue;
+                maxZ = Math.max(start.z, maxZ);
             }
             double t1 = dT * i;
             double t2 = dT * (i + 1);
             int minY = Mth.floor(floor + Physics.getMinHeight(gravity, jumpYSpeed, t1, t2));
             int maxY = Mth.ceil(floor + Physics.getMaxHeight(gravity, jumpYSpeed, t1, t2)) + entityHeight - 1;
             BOUNDS.set(minX, minY, minZ, maxX, maxY, maxZ);
-            if (hasJumpCollisions(BOUNDS)) {
-                return false;
+            for (IntegerAABB bound : BOUNDS.truncate(bounds)) {
+                if (bound != null && hasJumpCollisions(bound)) {
+                    return false;
+                }
             }
         }
         return true;
     }
 
-    protected boolean canJumpFrom(PathType type) {
-        return type != PathType.STICKY_HONEY && type != PathType.WATER && type != PathType.LAVA;
+    protected boolean canJumpIn(PathType type) {
+        return type != PathType.STICKY_HONEY;
+    }
+
+    protected boolean canJumpOn(PathType type) {
+        return type == PathType.BLOCKED || type == PathType.FENCE || type == PathType.LEAVES;
     }
 
     protected int addWalks(Node[] arr, Node start, int i) {
@@ -268,20 +283,25 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     @Override
     public int getNeighbors(Node[] arr, Node start) {
+        BlockPos pos = new BlockPos(start.x, start.y, start.z);
         int i = 0;
-        double floor = getFloorLevel(new BlockPos(start.x, start.y, start.z));
+        double floor = getFloorLevel(pos);
+        PathType type = getCachedPathType(start.x, start.y, start.z);
+        PathType downType = getCachedPathType(start.x, start.y - 1, start.z);
+        FluidState fluid = currentContext.level().getFluidState(pos);
+        boolean canJump = canJumpIn(type) && canJumpOn(downType) && fluid.getHeight(currentContext.level(), pos) <= mob.getFluidJumpThreshold();
         Node down = getDownNode(start);
         if (down != null) {
             arr[i++] = down;
         }
         i = addWalks(arr, start, i);
-        PathType type = getCachedPathType(start.x, start.y, start.z);
-        if (canJumpFrom(type) && getMobJumpHeight() >= 1) {
+        if (canJump && getMobJumpHeight() >= 1) {
             Node up = getUpNode(start, floor);
             if (up != null) {
                 arr[i++] = up;
             }
-            i = addJumps(arr, start, floor, i);
+            boolean canSprint = fluid.getFluidType().isAir();
+            i = addJumps(arr, start, floor, i, canSprint);
         }
         return i;
     }
