@@ -10,14 +10,17 @@ import net.minecraft.world.phys.Vec3;
 public class DroidPathNavigation extends GroundPathNavigation {
 
     public static final int JUMP_WIDTH = 5;
+    public static final int FLUID_JUMP_WIDTH = 1;
+    private final DroidEntity mob;
 
     public DroidPathNavigation(DroidEntity entity, Level world) {
         super(entity, world);
+        mob = entity;
     }
 
     @Override
     protected PathFinder createPathFinder(int max) {
-        nodeEvaluator = new DroidNodeEvaluator(1, true, JUMP_WIDTH);
+        nodeEvaluator = new DroidNodeEvaluator(1, true, JUMP_WIDTH, FLUID_JUMP_WIDTH);
         return new DroidPathfinder(this.nodeEvaluator, max, 1, true);
     }
 
@@ -27,9 +30,11 @@ public class DroidPathNavigation extends GroundPathNavigation {
         if (!isDone()) {
             Node prev = path.getPreviousNode();
             Node node = path.getNextNode();
-            if (DroidPathfinder.isJump(prev, node) && mob.getMoveControl() instanceof DroidMoveControl control) {
-                Vec3 target = this.path.getNextEntityPos(mob);
-                control.jumpTowards(target.x(), getGroundY(target), target.z(), speedModifier);
+            if (DroidPathfinder.isJump(prev, node)) {
+                if (mob.getMoveControl() instanceof DroidMoveControl control) {
+                    Vec3 target = this.path.getNextEntityPos(mob);
+                    control.jumpTowards(target.x(), getGroundY(target), target.z(), speedModifier);
+                }
             }
         }
     }

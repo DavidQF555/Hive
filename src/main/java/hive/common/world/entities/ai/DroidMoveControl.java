@@ -4,7 +4,6 @@ import hive.common.world.Physics;
 import hive.common.world.entities.DroidEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.phys.Vec3;
@@ -16,11 +15,13 @@ public class DroidMoveControl extends MoveControl {
     private static final double ERROR = 1E-7;
     private static final double JUMP_ERROR = 0.1;
     private static final int JUMP_CAP = 5;
+    private final DroidEntity mob;
     private DroidOperation operation = DroidOperation.WAIT;
     private int jumpDelay;
 
-    public DroidMoveControl(Mob mob) {
+    public DroidMoveControl(DroidEntity mob) {
         super(mob);
+        this.mob = mob;
     }
 
     @Override
@@ -40,7 +41,7 @@ public class DroidMoveControl extends MoveControl {
         }
         if (operation == DroidOperation.START_JUMP) {
             if (mob.onGround()) {
-                if (isInSwimmableFluid() && !canJumpFluid()) {
+                if (mob.isInSwimmableFluid() && !canJumpFluid()) {
                     setOperation(DroidOperation.MOVE_TO);
                 } else {
                     Optional<Double> t = getJumpLandingTime();
@@ -74,7 +75,7 @@ public class DroidMoveControl extends MoveControl {
             }
         }
         if (this.operation == DroidOperation.MOVE_TO) {
-            if (!mob.onGround() && !isInSwimmableFluid()) {
+            if (!mob.onGround() && !mob.isInSwimmableFluid()) {
                 setOperation(DroidOperation.IN_AIR);
             } else {
                 double len = Math.sqrt(dX * dX + dZ * dZ);
@@ -122,7 +123,7 @@ public class DroidMoveControl extends MoveControl {
     }
 
     public boolean shouldSprint() {
-        return operation != DroidOperation.WAIT && !isInSwimmableFluid() && (!mob.isInWater() || mob.isUnderWater());
+        return operation != DroidOperation.WAIT && !mob.isInSwimmableFluid() && (!mob.isInWater() || mob.isUnderWater());
     }
 
     protected void setOperation(DroidOperation operation) {
@@ -155,10 +156,6 @@ public class DroidMoveControl extends MoveControl {
 
     private Optional<Double> getJumpLandingTime() {
         return Physics.getLandingTime(-mob.getEffectiveGravity(), wantedY - mob.getY(), mob.getAttributeValue(Attributes.JUMP_STRENGTH) + mob.getJumpBoostPower());
-    }
-
-    protected boolean isInSwimmableFluid() {
-        return mob.isInFluidType((fluidType, height) -> mob.canSwimInFluidType(fluidType));
     }
 
     protected boolean canJumpFluid() {

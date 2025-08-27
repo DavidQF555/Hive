@@ -9,7 +9,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
@@ -21,6 +20,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
+import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.ArrayList;
@@ -30,6 +30,7 @@ public class DroidEntity extends PathfinderMob {
 
     public static final float FLY_MULTIPLIER = 0.2f;
     public static final double JUMP_BOOST = 0.2;
+    public static final double WATER_SPEED = 0.04;
 
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
         super(type, world);
@@ -50,11 +51,10 @@ public class DroidEntity extends PathfinderMob {
 
     @Override
     protected void registerGoals() {
-        goalSelector.addGoal(0, new FloatGoal(this));
-        goalSelector.addGoal(1, new MeleeAttackGoal(this, 1, false));
-        goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1));
-        goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 8));
-        goalSelector.addGoal(3, new RandomLookAroundGoal(this));
+        goalSelector.addGoal(0, new MeleeAttackGoal(this, 1, false));
+        goalSelector.addGoal(1, new WaterAvoidingRandomStrollGoal(this, 1));
+        goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 8));
+        goalSelector.addGoal(2, new RandomLookAroundGoal(this));
         targetSelector.addGoal(1, new HurtByTargetGoal(this));
         targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, false));
         targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Villager.class, false));
@@ -83,6 +83,11 @@ public class DroidEntity extends PathfinderMob {
     }
 
     @Override
+    public boolean canDrownInFluidType(FluidType type) {
+        return false;
+    }
+
+    @Override
     protected DroidPathNavigation createNavigation(Level world) {
         return new DroidPathNavigation(this, world);
     }
@@ -90,6 +95,10 @@ public class DroidEntity extends PathfinderMob {
     @Override
     public DroidPathNavigation getNavigation() {
         return (DroidPathNavigation) super.getNavigation();
+    }
+
+    public boolean isInSwimmableFluid() {
+        return isInFluidType((fluidType, height) -> canSwimInFluidType(fluidType));
     }
 
 }

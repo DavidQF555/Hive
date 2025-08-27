@@ -16,7 +16,7 @@ import java.util.Set;
 
 public class DroidPathfinder extends PathFinder {
 
-    private static final int SIZE = DroidNodeEvaluator.getMinCacheSize(DroidPathNavigation.JUMP_WIDTH);
+    private static final int SIZE = DroidNodeEvaluator.getMinCacheSize(DroidPathNavigation.JUMP_WIDTH, DroidPathNavigation.FLUID_JUMP_WIDTH);
     private final boolean assumeSprinting;
     private final double speedFactor;
     private double ySpeed, xzSpeed, gravity;
