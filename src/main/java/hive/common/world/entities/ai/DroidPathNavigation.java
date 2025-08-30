@@ -1,21 +1,38 @@
 package hive.common.world.entities.ai;
 
 import hive.common.world.entities.DroidEntity;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.PathFinder;
+import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 public class DroidPathNavigation extends GroundPathNavigation {
 
     public static final int JUMP_WIDTH = 5;
     public static final int FLUID_JUMP_WIDTH = 1;
+    private static final BlockPos.MutableBlockPos MUTABLE = new BlockPos.MutableBlockPos();
     private final DroidEntity mob;
 
     public DroidPathNavigation(DroidEntity entity, Level world) {
         super(entity, world);
         mob = entity;
+    }
+
+    private boolean isJump(BlockGetter world, double step, @Nullable Node prev, Node next) {
+        if (prev == null) {
+            return false;
+        }
+        if (Math.abs(prev.x - next.x) >= 2 || Math.abs(prev.z - next.z) >= 2) {
+            return true;
+        }
+        double prevHeight = WalkNodeEvaluator.getFloorLevel(world, MUTABLE.set(prev.x, prev.y, prev.z));
+        double nextHeight = WalkNodeEvaluator.getFloorLevel(world, MUTABLE.set(next.x, next.y, next.z));
+        return nextHeight - prevHeight > step;
     }
 
     @Override
@@ -30,7 +47,7 @@ public class DroidPathNavigation extends GroundPathNavigation {
         if (!isDone()) {
             Node prev = path.getPreviousNode();
             Node node = path.getNextNode();
-            if (DroidPathfinder.isJump(prev, node)) {
+            if (isJump(mob.level(), mob.maxUpStep(), prev, node)) {
                 if (mob.getMoveControl() instanceof DroidMoveControl control) {
                     Vec3 target = this.path.getNextEntityPos(mob);
                     control.jumpTowards(target.x(), getGroundY(target), target.z(), speedModifier);

@@ -26,7 +26,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     private final double speedFactor;
     private final boolean assumeSprinting;
     private final int jumpWidth, fluidJumpWidth;
-    private double jumpXZSpeed, jumpYSpeed, gravity, jumpHeight, waterJumpHeight, lavaJumpHeight, thresholdLavaJumpHeight;
+    private double jumpXZSpeed, jumpYSpeed, gravity, jumpHeight, waterJumpHeight, lavaJumpHeight, thresholdLavaJumpHeight, maxStep;
 
     public DroidNodeEvaluator(double speedFactor, boolean assumeSprinting, int jumpWidth, int fluidJumpWidth) {
         this.speedFactor = speedFactor;
@@ -46,6 +46,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         jumpYSpeed = mob.getAttributeValue(Attributes.JUMP_STRENGTH) + mob.getJumpBoostPower();
         gravity = -mob.getAttributeValue(Attributes.GRAVITY);
         jumpHeight = Physics.getHeight(gravity, jumpYSpeed);
+        maxStep = mob.maxUpStep();
         double jumpAcc = mob.getAttributeValue(NeoForgeMod.SWIM_SPEED) * DroidEntity.WATER_SPEED;
         waterJumpHeight = Physics.getHeight(gravity, Physics.getWaterAsymptoticFluidSpeedY(gravity, jumpAcc));
         lavaJumpHeight = Physics.getHeight(gravity, Physics.getLavaAsymptoticFluidSpeedY(gravity, jumpAcc, false));
@@ -201,9 +202,9 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     }
 
     protected boolean canJumpPosition(Node start, Node to, double floor, boolean canSprint) {
-        double distH = start.distanceToXZ(to) - 1;
+        double distH = start.distanceToXZ(to);
         double toFloor = getFloorLevel(new BlockPos(to.x, to.y, to.z));
-        double diff = toFloor - floor;
+        double diff = toFloor - floor - maxStep;
         return Physics.getLandingTime(gravity, diff, jumpYSpeed)
                 .map(time -> time * getJumpXZSpeed(canSprint) > distH)
                 .orElse(false);
