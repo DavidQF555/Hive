@@ -4,6 +4,7 @@ import hive.common.world.Physics;
 import hive.common.world.entities.DroidEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.phys.Vec3;
@@ -41,8 +42,8 @@ public class DroidMoveControl extends MoveControl {
         }
         if (operation == DroidOperation.START_JUMP) {
             if (mob.onGround()) {
-                if (mob.isInSwimmableFluid() && !canJumpFluid()) {
-                    setOperation(DroidOperation.MOVE_TO);
+                if (isInFluid()) {
+                    setOperation(DroidOperation.IN_FLUID);
                 } else {
                     Optional<Double> t = getJumpLandingTime();
                     if (t.isEmpty()) {
@@ -62,7 +63,9 @@ public class DroidMoveControl extends MoveControl {
             }
         }
         if (this.operation == DroidOperation.IN_AIR) {
-            if (mob.onGround()) {
+            if (isInFluid()) {
+                setOperation(DroidOperation.IN_FLUID);
+            } else if (mob.onGround()) {
                 setOperation(DroidOperation.WAIT);
             } else {
                 Optional<Double> t = getLandingTime();
@@ -74,12 +77,44 @@ public class DroidMoveControl extends MoveControl {
                 }
             }
         }
+        double len = Math.sqrt(dX * dX + dZ * dZ);
+        double speed = Math.min(len, max);
+        if (operation == DroidOperation.IN_FLUID) {
+            if (!isInFluid()) {
+                if (mob.onGround()) {
+                    setOperation(DroidOperation.MOVE_TO);
+                } else {
+                    setOperation(DroidOperation.IN_AIR);
+                }
+            } else {
+                if (dY > mob.getFluidJumpThreshold() && mob.level().getRandom().nextFloat() < 0.8f) {
+                    mob.getJumpControl().jump();
+                }
+                double slow;
+                if (mob.hasEffect(MobEffects.DOLPHINS_GRACE)) {
+                    slow = 0.96;
+                } else {
+                    slow = mob.isSprinting() ? 0.9 : mob.getWaterSlowDown();
+                    double eff = mob.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY);
+                    if (!mob.onGround()) {
+                        eff *= 0.5;
+                    }
+                    if (eff > 0) {
+                        slow += (0.54600006 - slow) * eff;
+                    }
+                }
+                double tX = dX * speed / len / slow;
+                double tZ = dZ * speed / len / slow;
+                mob.setYRot(rot);
+                setDeltaMovement(tX, tZ, max);
+            }
+        }
         if (this.operation == DroidOperation.MOVE_TO) {
-            if (!mob.onGround() && !mob.isInSwimmableFluid()) {
+            if (isInFluid()) {
+                setOperation(DroidOperation.IN_FLUID);
+            } else if (!mob.onGround()) {
                 setOperation(DroidOperation.IN_AIR);
             } else {
-                double len = Math.sqrt(dX * dX + dZ * dZ);
-                double speed = Math.min(len, max);
                 BlockPos below = mob.getBlockPosBelowThatAffectsMyMovement();
                 float friction = mob.level().getBlockState(below).getFriction(mob.level(), below, mob);
                 double tX = dX * speed / len / friction;
@@ -130,6 +165,10 @@ public class DroidMoveControl extends MoveControl {
         this.operation = operation;
     }
 
+    protected boolean isInFluid() {
+        return mob.isInSwimmableFluid() && (!canJumpFluid() || mob.isUnderWater());
+    }
+
     protected boolean canJump(double tX, double tZ) {
         Vec3 speed = mob.getDeltaMovement();
         double xSpeed = speed.x();
@@ -143,7 +182,7 @@ public class DroidMoveControl extends MoveControl {
     }
 
     public void jumpTowards(double x, double y, double z, double speed) {
-        if (operation != DroidOperation.START_JUMP && operation != DroidOperation.IN_AIR) {
+        if (operation == DroidOperation.WAIT || operation == DroidOperation.MOVE_TO) {
             jumpDelay = 0;
             setWantedPosition(x, y, z, speed);
             setOperation(DroidOperation.START_JUMP);
@@ -170,7 +209,7 @@ public class DroidMoveControl extends MoveControl {
     @Override
     public void setWantedPosition(double x, double y, double z, double speed) {
         super.setWantedPosition(x, y, z, speed);
-        if (this.operation != DroidOperation.IN_AIR && operation != DroidOperation.START_JUMP) {
+        if (operation == DroidOperation.WAIT) {
             setOperation(DroidOperation.MOVE_TO);
         }
     }
@@ -179,7 +218,8 @@ public class DroidMoveControl extends MoveControl {
         WAIT(),
         MOVE_TO(),
         IN_AIR(),
-        START_JUMP()
+        START_JUMP(),
+        IN_FLUID()
     }
 
 }

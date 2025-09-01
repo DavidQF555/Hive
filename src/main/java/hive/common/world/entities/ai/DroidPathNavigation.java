@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.PathFinder;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
@@ -21,6 +22,7 @@ public class DroidPathNavigation extends GroundPathNavigation {
     public DroidPathNavigation(DroidEntity entity, Level world) {
         super(entity, world);
         mob = entity;
+        setCanFloat(true);
     }
 
     private boolean isJump(BlockGetter world, double step, @Nullable Node prev, Node next) {
@@ -39,6 +41,13 @@ public class DroidPathNavigation extends GroundPathNavigation {
     protected PathFinder createPathFinder(int max) {
         nodeEvaluator = new DroidNodeEvaluator(1, true, JUMP_WIDTH, FLUID_JUMP_WIDTH);
         return new DroidPathfinder(this.nodeEvaluator, max, 1, true);
+    }
+
+    @Override
+    protected double getGroundY(Vec3 pos) {
+        BlockPos block = BlockPos.containing(pos);
+        BlockState below = level.getBlockState(block.below());
+        return below.isAir() || !below.getFluidState().isEmpty() ? pos.y() : WalkNodeEvaluator.getFloorLevel(level, block);
     }
 
     @Override
