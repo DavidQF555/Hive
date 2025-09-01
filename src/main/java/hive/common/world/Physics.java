@@ -4,32 +4,7 @@ import java.util.Optional;
 
 public final class Physics {
 
-    public static final double WATER_SLOW_DOWN = 0.8; // must be in range [0, 1)
-    public static final double LAVA_SLOW_DOWN = 0.5;
-
     private Physics() {
-    }
-
-    public static double getWaterAsymptoticFluidSpeedY(double gravity, double jumpY) {
-        return (jumpY + gravity / 16) / (1 - WATER_SLOW_DOWN);
-    }
-
-    public static double getLavaAsymptoticFluidSpeedY(double gravity, double jumpY, boolean belowThreshold) {
-        if (belowThreshold) {
-            return (jumpY + gravity * 5 / 16) / (1 - WATER_SLOW_DOWN);
-        } else {
-            return (jumpY + gravity / 4) / (1 - LAVA_SLOW_DOWN);
-        }
-    }
-
-    public static double getDistanceInFluid(double gravity, double dY0, double time) {
-        double val = 1 - WATER_SLOW_DOWN;
-        return time * gravity / val + (dY0 - gravity / val) * WATER_SLOW_DOWN * (1 - Math.pow(WATER_SLOW_DOWN, time)) / val;
-    }
-
-    public static double getFluidSpeedY(double gravity, double dY0, int time) {
-        double val = 1 - WATER_SLOW_DOWN;
-        return ((val * dY0 - gravity) * Math.pow(WATER_SLOW_DOWN, time) + gravity) / val;
     }
 
     public static Optional<Double> getLandingTime(double gravity, double distance, double dY) {

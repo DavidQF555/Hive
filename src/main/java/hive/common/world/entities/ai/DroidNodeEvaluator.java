@@ -15,7 +15,6 @@ import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.level.pathfinder.PathfindingContext;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
-import net.neoforged.neoforge.common.NeoForgeMod;
 import org.jetbrains.annotations.Nullable;
 
 public class DroidNodeEvaluator extends WalkNodeEvaluator {
@@ -26,7 +25,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     private final double speedFactor;
     private final boolean assumeSprinting;
     private final int jumpWidth, fluidJumpWidth;
-    private double jumpXZSpeed, jumpYSpeed, gravity, jumpHeight, waterJumpHeight, lavaJumpHeight, thresholdLavaJumpHeight, maxStep;
+    private double jumpXZSpeed, jumpYSpeed, gravity, jumpHeight, maxStep;
 
     public DroidNodeEvaluator(double speedFactor, boolean assumeSprinting, int jumpWidth, int fluidJumpWidth) {
         this.speedFactor = speedFactor;
@@ -47,10 +46,6 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         gravity = -mob.getAttributeValue(Attributes.GRAVITY);
         jumpHeight = Physics.getHeight(gravity, jumpYSpeed);
         maxStep = mob.maxUpStep();
-        double jumpAcc = mob.getAttributeValue(NeoForgeMod.SWIM_SPEED) * DroidEntity.WATER_SPEED;
-        waterJumpHeight = Physics.getHeight(gravity, Physics.getWaterAsymptoticFluidSpeedY(gravity, jumpAcc));
-        lavaJumpHeight = Physics.getHeight(gravity, Physics.getLavaAsymptoticFluidSpeedY(gravity, jumpAcc, false));
-        thresholdLavaJumpHeight = Physics.getHeight(gravity, Physics.getLavaAsymptoticFluidSpeedY(gravity, jumpAcc, true));
     }
 
     protected double getJumpXZSpeed(boolean canSprint) {
@@ -166,9 +161,9 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return false;
     }
 
-    protected int addFluidJumps(Node[] arr, Node start, int i, double fluidHeight, double jumpHeight) {
+    protected int addFluidJumps(Node[] arr, Node start, int i, double fluidHeight) {
         double floor = start.y + fluidHeight;
-        int dif = Mth.ceil(jumpHeight + fluidHeight) - 1;
+        int dif = Mth.ceil(jumpHeight) - 1;
         int y = start.y + dif + 1;
         for (int x = start.x - fluidJumpWidth; x <= start.x + fluidJumpWidth; x++) {
             for (int z = start.z - fluidJumpWidth; z <= start.z + fluidJumpWidth; z++) {
@@ -328,15 +323,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
                 i = addJumps(arr, start, floor, i, canSprint);
             }
         } else if (!fluid.getFluidType().isAir()) {
-            double jumpHeight;
-            if (fluid.getFluidType() == NeoForgeMod.WATER_TYPE.value()) {
-                jumpHeight = waterJumpHeight;
-            } else if (fluid.getFluidType() == NeoForgeMod.LAVA_TYPE.value() && fluidHeight <= mob.getFluidJumpThreshold()) {
-                jumpHeight = lavaJumpHeight;
-            } else {
-                jumpHeight = thresholdLavaJumpHeight;
-            }
-            i = addFluidJumps(arr, start, i, fluidHeight, jumpHeight);
+            i = addFluidJumps(arr, start, i, fluidHeight);
         }
         return i;
     }
