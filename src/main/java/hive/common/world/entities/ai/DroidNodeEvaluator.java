@@ -138,17 +138,25 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return Math.max(jumpHeight, mob.maxUpStep());
     }
 
-    protected boolean hasJumpCollisions(IntegerAABB bounds) {
+    protected boolean hasJumpCollisions(IntegerAABB bounds, @Nullable IntegerAABB exclude) {
         if (bounds.isEmpty()) {
             return false;
         }
+        boolean set = exclude == null || !bounds.intersects(exclude);
         if (jumpCollisions.containsKey(bounds)) {
-            return jumpCollisions.getBoolean(bounds);
+            if (!jumpCollisions.getBoolean(bounds)) {
+                return false;
+            } else if (set) {
+                return true;
+            }
         }
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int x = bounds.minX; x < bounds.maxX; x++) {
             for (int y = bounds.minY; y < bounds.maxY; y++) {
                 for (int z = bounds.minZ; z < bounds.maxZ; z++) {
+                    if (exclude != null && exclude.intersects(x, y, z)) {
+                        continue;
+                    }
                     pos.set(x, y, z);
                     if (!currentContext.level().getBlockState(pos).isEmpty()) {
                         jumpCollisions.put(bounds.immutable(), true);
@@ -157,7 +165,9 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
                 }
             }
         }
-        jumpCollisions.put(bounds.immutable(), false);
+        if (set) {
+            jumpCollisions.put(bounds.immutable(), false);
+        }
         return false;
     }
 
@@ -215,7 +225,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         int steps = Mth.ceil(len / Math.min(entityDepth, entityWidth));
         dX /= steps;
         dZ /= steps;
-        double dT = Physics.getLandingTime(gravity, toFloor - floor, jumpYSpeed).map(t -> t / steps).orElseThrow();
+        double dT = Physics.getLandingTime(gravity, toFloor - floor - maxStep, jumpYSpeed).map(t -> t / steps).orElseThrow();
         for (int i = 0; i < steps; i++) {
             int minX = Mth.floor(start.x + dX * i);
             int maxX = Mth.ceil(start.x + dX * i) + entityWidth;
@@ -238,12 +248,10 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
             double t1 = dT * i;
             double t2 = dT * (i + 1);
             int minY = Mth.floor(floor + Physics.getMinHeight(gravity, jumpYSpeed, t1, t2));
-            int maxY = Mth.ceil(floor + Physics.getMaxHeight(gravity, jumpYSpeed, t1, t2)) + entityHeight - 1;
+            int maxY = Mth.ceil(floor + Physics.getMaxHeight(gravity, jumpYSpeed, t1, t2)) + entityHeight;
             BOUNDS.set(minX, minY, minZ, maxX, maxY, maxZ);
-            for (IntegerAABB bound : BOUNDS.truncate(bounds)) {
-                if (bound != null && hasJumpCollisions(bound)) {
-                    return false;
-                }
+            if (hasJumpCollisions(BOUNDS, bounds)) {
+                return false;
             }
         }
         return true;
