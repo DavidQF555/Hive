@@ -1,13 +1,20 @@
 package hive.common.world.entities;
 
+import hive.common.ItemTags;
 import hive.common.ServerConfigs;
 import hive.common.world.entities.ai.DroidMoveControl;
 import hive.common.world.entities.ai.DroidPathNavigation;
 import hive.common.world.packets.DebugPathEffectPacket;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.DifficultyInstance;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
@@ -16,21 +23,26 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class DroidEntity extends PathfinderMob {
+public class DroidEntity extends Monster {
 
     public static final float FLY_MULTIPLIER = 0.2f;
     public static final double JUMP_BOOST = 0.2;
+    public static final List<EquipmentSlot> EQUIPMENT_POPULATION_ORDER = List.of(EquipmentSlot.MAINHAND, EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND);
 
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
         super(type, world);
@@ -42,6 +54,29 @@ public class DroidEntity extends PathfinderMob {
                 .add(Attributes.ATTACK_DAMAGE, 1)
                 .add(Attributes.MOVEMENT_SPEED, 0.1f)
                 .add(Attributes.FOLLOW_RANGE, 64);
+    }
+
+    @SuppressWarnings({"deprecation", "OverrideOnly"})
+    @Nullable
+    @Override
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor world, DifficultyInstance difficulty, EntitySpawnReason spawn, @Nullable SpawnGroupData data) {
+        RandomSource random = world.getRandom();
+        populateDefaultEquipmentSlots(random, difficulty);
+        populateDefaultEquipmentEnchantments(world, random, difficulty);
+        return super.finalizeSpawn(world, difficulty, spawn, data);
+    }
+
+    @Override
+    protected void populateDefaultEquipmentSlots(RandomSource random, DifficultyInstance difficulty) {
+        float chance = level().getDifficulty() == Difficulty.HARD ? 0.05f : 0.15f;
+        for (EquipmentSlot slot : EQUIPMENT_POPULATION_ORDER) {
+            if (random.nextFloat() < chance) {
+                break;
+            }
+            BuiltInRegistries.ITEM.getOrThrow(ItemTags.DROID_EQUIPMENT.get(slot))
+                    .getRandomElement(random)
+                    .ifPresent(item -> setItemSlot(slot, new ItemStack(item)));
+        }
     }
 
     @Override
