@@ -18,8 +18,7 @@ public final class ClientHelper {
     public static void renderPath(List<BlockPos> path) {
         ClientLevel world = Minecraft.getInstance().level;
         if (world != null && !path.isEmpty()) {
-            for (int i = 0; i < path.size(); i++) {
-                BlockPos pos = path.get(i);
+            for (BlockPos pos : path) {
                 world.addParticle(ParticleTypes.FLAME, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 0, 0, 0);
             }
             for (int i = 1; i < path.size(); i++) {

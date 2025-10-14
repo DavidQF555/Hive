@@ -1,8 +1,9 @@
 package hive.common.world.entities;
 
+import hive.common.ServerConfigs;
 import hive.common.world.entities.ai.DroidMoveControl;
 import hive.common.world.entities.ai.DroidPathNavigation;
-import hive.common.world.packets.PathEffectPacket;
+import hive.common.world.packets.DebugPathEffectPacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
@@ -68,7 +69,7 @@ public class DroidEntity extends PathfinderMob {
                 setSprinting(sprint);
             }
         }
-        if (world.getGameTime() % 20 == 0) {
+        if (ServerConfigs.INSTANCE.pathDebug.get() && world.getGameTime() % 20 == 0) {
             Path path = getNavigation().getPath();
             if (path != null) {
                 List<BlockPos> all = new ArrayList<>();
@@ -76,7 +77,7 @@ public class DroidEntity extends PathfinderMob {
                     Node node = path.getNode(i);
                     all.add(new BlockPos(node.x, node.y, node.z));
                 }
-                PacketDistributor.sendToPlayersTrackingEntity(this, new PathEffectPacket(all));
+                PacketDistributor.sendToPlayersTrackingEntity(this, new DebugPathEffectPacket(all));
             }
         }
     }

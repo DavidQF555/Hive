@@ -10,7 +10,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 @EventBusSubscriber(modid = Hive.ID, bus = EventBusSubscriber.Bus.MOD)
 public final class PacketRegistry {
 
-    public static final CustomPacketPayload.Type<PathEffectPacket> PATH = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Hive.ID, "path"));
+    public static final CustomPacketPayload.Type<DebugPathEffectPacket> DEBUG_PATH = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Hive.ID, "debug_path"));
 
     private PacketRegistry() {
     }
@@ -18,7 +18,7 @@ public final class PacketRegistry {
     @SubscribeEvent
     public static void onRegisterPayloadHandlers(RegisterPayloadHandlersEvent event) {
         event.registrar("1")
-                .playToClient(PATH, PathEffectPacket.CODEC, PathEffectPacket::handle);
+                .playToClient(DEBUG_PATH, DebugPathEffectPacket.CODEC, DebugPathEffectPacket::handle);
     }
 
 }

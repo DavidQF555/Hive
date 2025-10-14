@@ -10,20 +10,20 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.List;
 
-public record PathEffectPacket(List<BlockPos> pos) implements CustomPacketPayload {
+public record DebugPathEffectPacket(List<BlockPos> pos) implements CustomPacketPayload {
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, PathEffectPacket> CODEC = StreamCodec.composite(
-            BlockPos.STREAM_CODEC.apply(ByteBufCodecs.list()), PathEffectPacket::pos,
-            PathEffectPacket::new
+    public static final StreamCodec<RegistryFriendlyByteBuf, DebugPathEffectPacket> CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC.apply(ByteBufCodecs.list()), DebugPathEffectPacket::pos,
+            DebugPathEffectPacket::new
     );
 
-    public static void handle(PathEffectPacket packet, IPayloadContext context) {
+    public static void handle(DebugPathEffectPacket packet, IPayloadContext context) {
         ClientHelper.renderPath(packet.pos());
     }
 
     @Override
     public Type<? extends CustomPacketPayload> type() {
-        return PacketRegistry.PATH;
+        return PacketRegistry.DEBUG_PATH;
     }
 
 }
