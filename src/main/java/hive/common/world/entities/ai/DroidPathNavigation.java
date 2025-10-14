@@ -16,6 +16,7 @@ public class DroidPathNavigation extends GroundPathNavigation {
 
     public static final int JUMP_WIDTH = 5;
     public static final int FLUID_JUMP_WIDTH = 1;
+    private static final double FLUID_JUMP_HEIGHT = 1.0 / 9;
     private static final BlockPos.MutableBlockPos MUTABLE = new BlockPos.MutableBlockPos();
     private final DroidEntity mob;
 
@@ -39,7 +40,7 @@ public class DroidPathNavigation extends GroundPathNavigation {
 
     @Override
     protected PathFinder createPathFinder(int max) {
-        nodeEvaluator = new DroidNodeEvaluator(1, true, JUMP_WIDTH, FLUID_JUMP_WIDTH);
+        nodeEvaluator = new DroidNodeEvaluator(1, true, JUMP_WIDTH, FLUID_JUMP_WIDTH, FLUID_JUMP_HEIGHT);
         return new DroidPathfinder(this.nodeEvaluator, max, 1, true);
     }
 
