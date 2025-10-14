@@ -8,7 +8,7 @@ version = "${mod_version}"
 displayName = "${mod_name}"
 displayURL = "https://github.com/DavidQF555/Hive"
 updateJSONURL = "https://raw.githubusercontent.com/DavidQF555/Hive/update/update.json"
-# logoFile = "logo.png"
+logoFile = "logo.png"
 authors = "${mod_authors}"
 description = 'Adds new mobs.'
 [[dependencies.${ mod_id }]]
