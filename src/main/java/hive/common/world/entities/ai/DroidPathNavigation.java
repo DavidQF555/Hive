@@ -55,12 +55,17 @@ public class DroidPathNavigation extends GroundPathNavigation {
     public void tick() {
         super.tick();
         if (!isDone()) {
-            Node prev = path.getPreviousNode();
-            Node node = path.getNextNode();
-            if (isJump(mob.level(), mob.maxUpStep(), prev, node)) {
-                if (mob.getMoveControl() instanceof DroidMoveControl control) {
-                    Vec3 target = this.path.getNextEntityPos(mob);
-                    control.jumpTowards(target.x(), getGroundY(target), target.z(), speedModifier);
+            if (mob.getMoveControl() instanceof DroidMoveControl control && control.isStuck()) {
+                stop();
+                control.setStuck(false);
+            } else {
+                Node prev = path.getPreviousNode();
+                Node node = path.getNextNode();
+                if (isJump(mob.level(), mob.maxUpStep(), prev, node)) {
+                    if (mob.getMoveControl() instanceof DroidMoveControl control) {
+                        Vec3 target = this.path.getNextEntityPos(mob);
+                        control.jumpTowards(target.x(), getGroundY(target), target.z(), speedModifier);
+                    }
                 }
             }
         }

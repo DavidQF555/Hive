@@ -19,6 +19,7 @@ public class DroidMoveControl extends MoveControl {
     private final DroidEntity mob;
     private DroidOperation operation = DroidOperation.WAIT;
     private int jumpDelay;
+    private boolean stuck;
 
     public DroidMoveControl(DroidEntity mob) {
         super(mob);
@@ -48,6 +49,7 @@ public class DroidMoveControl extends MoveControl {
                     Optional<Double> t = getJumpLandingTime();
                     if (t.isEmpty()) {
                         setOperation(DroidOperation.WAIT);
+                        setStuck(true);
                     } else {
                         double tX = dX / t.get();
                         double tZ = dZ / t.get();
@@ -71,6 +73,7 @@ public class DroidMoveControl extends MoveControl {
                 Optional<Double> t = getLandingTime();
                 if (t.isEmpty()) {
                     setOperation(DroidOperation.WAIT);
+                    setStuck(true);
                 } else {
                     mob.setYRot(rot);
                     setDeltaMovement(dX / t.get(), dZ / t.get(), max);
@@ -155,6 +158,14 @@ public class DroidMoveControl extends MoveControl {
         } else {
             mob.setXxa((float) Mth.clamp(xxa, -1, 1));
         }
+    }
+
+    public boolean isStuck() {
+        return stuck;
+    }
+
+    public void setStuck(boolean stuck) {
+        this.stuck = stuck;
     }
 
     public boolean shouldSprint() {

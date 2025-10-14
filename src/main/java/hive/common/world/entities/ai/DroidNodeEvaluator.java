@@ -147,7 +147,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
             if (path != PathType.OPEN) {
                 if (malus >= 0) {
                     return getNodeAndUpdateCostToMax(x, i, z, path, malus);
-                } else if (stopOnFirst && floor <= maxY) {
+                } else if (stopOnFirst && floor < maxY) {
                     return getBlockedNode(x, i, z);
                 }
             }

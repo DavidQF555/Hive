@@ -30,7 +30,6 @@ public class DroidEntity extends PathfinderMob {
 
     public static final float FLY_MULTIPLIER = 0.2f;
     public static final double JUMP_BOOST = 0.2;
-    public static final double WATER_SPEED = 0.04;
 
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
         super(type, world);
