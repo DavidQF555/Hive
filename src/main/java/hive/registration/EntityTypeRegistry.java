@@ -5,9 +5,13 @@ import hive.common.world.entities.DroidEntity;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.SpawnPlacementTypes;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
+import net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -30,6 +34,11 @@ public final class EntityTypeRegistry {
     @SubscribeEvent
     public static void onEntityAttributeCreation(EntityAttributeCreationEvent event) {
         event.put(DROID.get(), DroidEntity.createAttributes().build());
+    }
+
+    @SubscribeEvent
+    public static void onRegisterSpawnPlacements(RegisterSpawnPlacementsEvent event) {
+        event.register(DROID.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Monster::checkMonsterSpawnRules, RegisterSpawnPlacementsEvent.Operation.AND);
     }
 
 }

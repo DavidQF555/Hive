@@ -1,0 +1,10 @@
+{
+  "type": "neoforge:add_spawns",
+  "biomes": "#c:is_overworld",
+  "spawners": {
+    "type": "hive:droid",
+    "weight": 15,
+    "minCount": 2,
+    "maxCount": 10
+  }
+}
