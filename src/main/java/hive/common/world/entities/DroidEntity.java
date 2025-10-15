@@ -19,6 +19,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.OpenDoorGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
@@ -46,6 +47,7 @@ public class DroidEntity extends Monster {
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
         super(type, world);
         moveControl = new DroidMoveControl(this);
+        setCanPickUpLoot(true);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -85,10 +87,11 @@ public class DroidEntity extends Monster {
 
     @Override
     protected void registerGoals() {
-        goalSelector.addGoal(0, new MeleeAttackGoal(this, 1, false));
-        goalSelector.addGoal(1, new WaterAvoidingRandomStrollGoal(this, 1));
-        goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 8));
-        goalSelector.addGoal(2, new RandomLookAroundGoal(this));
+        goalSelector.addGoal(0, new OpenDoorGoal(this, false));
+        goalSelector.addGoal(1, new MeleeAttackGoal(this, 1, false));
+        goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1));
+        goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 8));
+        goalSelector.addGoal(4, new RandomLookAroundGoal(this));
         targetSelector.addGoal(0, new HurtByTargetGoal(this));
         targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, Player.class, false));
     }
@@ -122,7 +125,9 @@ public class DroidEntity extends Monster {
 
     @Override
     protected DroidPathNavigation createNavigation(Level world) {
-        return new DroidPathNavigation(this, world);
+        DroidPathNavigation navigation = new DroidPathNavigation(this, world);
+        navigation.setCanOpenDoors(true);
+        return navigation;
     }
 
     @Override
