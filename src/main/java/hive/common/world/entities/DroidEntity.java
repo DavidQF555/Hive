@@ -24,7 +24,6 @@ import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Monster;
-import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -90,9 +89,8 @@ public class DroidEntity extends Monster {
         goalSelector.addGoal(1, new WaterAvoidingRandomStrollGoal(this, 1));
         goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 8));
         goalSelector.addGoal(2, new RandomLookAroundGoal(this));
-        targetSelector.addGoal(1, new HurtByTargetGoal(this));
-        targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, false));
-        targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Villager.class, false));
+        targetSelector.addGoal(0, new HurtByTargetGoal(this));
+        targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, Player.class, false));
     }
 
     @Override

@@ -1,0 +1,61 @@
+{
+  "type": "entity",
+  "pools": [
+    {
+      "bonus_rolls": 0,
+      "entries": [
+        {
+          "type": "item",
+          "functions": [
+            {
+              "add": false,
+              "count": {
+                "type": "uniform",
+                "max": 2,
+                "min": 0
+              },
+              "function": "set_count"
+            },
+            {
+              "count": {
+                "type": "uniform",
+                "max": 1,
+                "min": 0
+              },
+              "enchantment": "looting",
+              "function": "enchanted_count_increase"
+            }
+          ],
+          "name": "iron_nugget"
+        }
+      ],
+      "rolls": 1
+    },
+    {
+      "bonus_rolls": 0,
+      "conditions": [
+        {
+          "condition": "killed_by_player"
+        },
+        {
+          "condition": "random_chance_with_enchanted_bonus",
+          "enchanted_chance": {
+            "type": "linear",
+            "base": 0.035,
+            "per_level_above_first": 0.01
+          },
+          "enchantment": "looting",
+          "unenchanted_chance": 0.025
+        }
+      ],
+      "entries": [
+        {
+          "type": "item",
+          "name": "iron_ingot"
+        }
+      ],
+      "rolls": 1
+    }
+  ],
+  "random_sequence": "minecraft:entities/zombie"
+}
