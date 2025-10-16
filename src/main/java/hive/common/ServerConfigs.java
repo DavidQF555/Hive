@@ -15,10 +15,16 @@ public class ServerConfigs {
     }
 
     public final ModConfigSpec.BooleanValue pathDebug;
+    public final ModConfigSpec.DoubleValue droidGearRate, droidHardGearRate;
 
     public ServerConfigs(ModConfigSpec.Builder builder) {
         builder.comment("Multiverse server-side configuration");
-        pathDebug = builder.define("pathDebug", false);
+        pathDebug = builder.comment("Whether to display particles for Droid entity paths")
+                .define("pathDebug", false);
+        droidGearRate = builder.comment("Chance of each Droid entity equipment slot to be equipped when not in Hard difficulty")
+                .defineInRange("droidGearRate", 0.6, 0, 1);
+        droidHardGearRate = builder.comment("Chance of each Droid entity equipment slot to be equipped when in Hard difficulty")
+                .defineInRange("droidHardGearRate", 0.9, 0, 1);
     }
 
 }

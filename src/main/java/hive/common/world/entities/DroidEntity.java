@@ -69,14 +69,15 @@ public class DroidEntity extends Monster {
 
     @Override
     protected void populateDefaultEquipmentSlots(RandomSource random, DifficultyInstance difficulty) {
-        float chance = level().getDifficulty() == Difficulty.HARD ? 0.05f : 0.15f;
+        double chance = level().getDifficulty() == Difficulty.HARD ? ServerConfigs.INSTANCE.droidHardGearRate.get() : ServerConfigs.INSTANCE.droidGearRate.get();
         for (EquipmentSlot slot : EQUIPMENT_POPULATION_ORDER) {
-            if (random.nextFloat() < chance) {
+            if (random.nextDouble() < chance) {
+                BuiltInRegistries.ITEM.getOrThrow(ItemTags.DROID_EQUIPMENT.get(slot))
+                        .getRandomElement(random)
+                        .ifPresent(item -> setItemSlot(slot, new ItemStack(item)));
+            } else {
                 break;
             }
-            BuiltInRegistries.ITEM.getOrThrow(ItemTags.DROID_EQUIPMENT.get(slot))
-                    .getRandomElement(random)
-                    .ifPresent(item -> setItemSlot(slot, new ItemStack(item)));
         }
     }
 
