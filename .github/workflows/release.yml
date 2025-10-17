@@ -40,8 +40,8 @@ jobs:
           path: ${{needs.path.outputs.file_path}}
           key: ${{github.sha}}
 
-  release:
-    name: Upload to release
+  upload:
+    name: Upload
     runs-on: ubuntu-latest
     needs: [ path,build ]
     steps:
@@ -50,29 +50,20 @@ jobs:
         with:
           path: ${{needs.path.outputs.file_path}}
           key: ${{github.sha}}
-      - name: Upload to release
-        uses: softprops/action-gh-release@v2
+      - name: Upload to GitHub release, CurseForge, and Modrinth
+        uses: Kira-NT/mc-publish@v3
         with:
           files: ${{needs.path.outputs.file_path}}
-
-  curseforge:
-    name: Upload to CurseForge
-    runs-on: ubuntu-latest
-    needs: [ path,build ]
-    steps:
-      - name: Restore cache
-        uses: actions/cache@v4
-        with:
-          path: ${{needs.path.outputs.file_path}}
-          key: ${{github.sha}}
-      - name: Upload to CurseForge
-        uses: itsmeow/curseforge-upload@v3.1.2
-        with:
-          token: ${{secrets.curseforge_api}}
-          project_id: 1213320
-          game_endpoint: minecraft
-          file_path: ${{needs.path.outputs.file_path}}
+          name: ${{github.event.release.name}}
+          version: ${{github.event.release.tag_name}}
+          version-type: beta
           changelog: ${{github.event.release.body}}
-          display_name: ${{github.event.release.name}}
-          release_type: release
-          game_versions: minecraft-1-21:1.21.4,java:Java 21,NeoForge
+          loaders: neoforge
+          game-versions: 1.21.4
+          java: 21
+          modrinth-id: ypXGbbhR
+          modrinth-token: ${{secrets.modrinth_token}}
+          curseforge-id: 1213320
+          curseforge-token: ${{secrets.curseforge_token}}
+          github-tag: ${{github.event.release.tag_name}}
+          github-token: ${{secrets.token_github}}
