@@ -10,7 +10,7 @@ displayURL = "https://github.com/DavidQF555/Hive"
 updateJSONURL = "https://raw.githubusercontent.com/DavidQF555/Hive/update/update.json"
 logoFile = "logo.png"
 authors = "${mod_authors}"
-description = 'Adds new mobs.'
+description = 'Adds a hive mind.'
 [[dependencies.${ mod_id }]]
 modId = "neoforge"
 mandatory = true
