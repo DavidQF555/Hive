@@ -8,12 +8,16 @@ import hive.common.world.packets.DebugPathEffectPacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.DifficultyInstance;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -105,6 +109,35 @@ public class DroidEntity extends Monster {
         return goal;
     }
 
+    @Override
+    protected SoundEvent getSwimSound() {
+        return SoundEvents.PLAYER_SWIM;
+    }
+
+    @Override
+    protected SoundEvent getSwimSplashSound() {
+        return SoundEvents.PLAYER_SPLASH;
+    }
+
+    @Override
+    protected SoundEvent getSwimHighSpeedSplashSound() {
+        return SoundEvents.PLAYER_SPLASH_HIGH_SPEED;
+    }
+
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        return source.type().effects().sound();
+    }
+
+    @Override
+    protected SoundEvent getDeathSound() {
+        return SoundEvents.PLAYER_DEATH;
+    }
+
+    @Override
+    public LivingEntity.Fallsounds getFallSounds() {
+        return new LivingEntity.Fallsounds(SoundEvents.PLAYER_SMALL_FALL, SoundEvents.PLAYER_BIG_FALL);
+    }
 
     @Override
     protected void customServerAiStep(ServerLevel world) {
