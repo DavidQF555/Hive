@@ -2,7 +2,7 @@ name: Build and upload mod
 on:
   release:
     types: [ published ]
-    branches: [ neoforge-1.21.4 ]
+    branches: [ neoforge-1.21.1 ]
 
 jobs:
 
@@ -62,7 +62,7 @@ jobs:
           version-type: beta
           changelog: ${{github.event.release.body}}
           loaders: neoforge
-          game-versions: 1.21.4
+          game-versions: 1.21.1
           java: 21
           modrinth-version: ${{steps.calculate_modrinth_version.outputs.modrinth_version}}
           modrinth-id: ypXGbbhR

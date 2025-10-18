@@ -7,18 +7,18 @@ import hive.common.world.entities.ai.DroidPathNavigation;
 import hive.common.world.packets.DebugPathEffectPacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -66,7 +66,7 @@ public class DroidEntity extends Monster {
     @SuppressWarnings({"deprecation", "OverrideOnly"})
     @Nullable
     @Override
-    public SpawnGroupData finalizeSpawn(ServerLevelAccessor world, DifficultyInstance difficulty, EntitySpawnReason spawn, @Nullable SpawnGroupData data) {
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor world, DifficultyInstance difficulty, MobSpawnType spawn, @Nullable SpawnGroupData data) {
         RandomSource random = world.getRandom();
         populateDefaultEquipmentSlots(random, difficulty);
         populateDefaultEquipmentEnchantments(world, random, difficulty);
@@ -78,7 +78,7 @@ public class DroidEntity extends Monster {
         double chance = level().getDifficulty() == Difficulty.HARD ? ServerConfigs.INSTANCE.droidHardGearRate.get() : ServerConfigs.INSTANCE.droidGearRate.get();
         for (EquipmentSlot slot : EQUIPMENT_POPULATION_ORDER) {
             if (random.nextDouble() < chance) {
-                BuiltInRegistries.ITEM.getOrThrow(ItemTags.DROID_EQUIPMENT.get(slot))
+                BuiltInRegistries.ITEM.getTag(ItemTags.DROID_EQUIPMENT.get(slot)).orElseThrow()
                         .getRandomElement(random)
                         .ifPresent(item -> setItemSlot(slot, new ItemStack(item)));
             } else {
@@ -101,6 +101,11 @@ public class DroidEntity extends Monster {
         goalSelector.addGoal(4, new RandomLookAroundGoal(this));
         targetSelector.addGoal(0, new HurtByTargetGoal(this));
         targetSelector.addGoal(1, getTargetPlayerGoal(this));
+    }
+
+    public double getEffectiveGravity() {
+        boolean down = getDeltaMovement().y <= 0;
+        return down && hasEffect(MobEffects.SLOW_FALLING) ? Math.min(getGravity(), 0.01) : getGravity();
     }
 
     protected TargetGoal getTargetPlayerGoal(Mob mob) {
@@ -140,15 +145,15 @@ public class DroidEntity extends Monster {
     }
 
     @Override
-    protected void customServerAiStep(ServerLevel world) {
-        super.customServerAiStep(world);
+    protected void customServerAiStep() {
+        super.customServerAiStep();
         if (getMoveControl() instanceof DroidMoveControl control) {
             boolean sprint = control.shouldSprint();
             if (sprint != isSprinting()) {
                 setSprinting(sprint);
             }
         }
-        if (ServerConfigs.INSTANCE.pathDebug.get() && world.getGameTime() % 20 == 0) {
+        if (ServerConfigs.INSTANCE.pathDebug.get() && level().getGameTime() % 20 == 0) {
             Path path = getNavigation().getPath();
             if (path != null) {
                 List<BlockPos> all = new ArrayList<>();

@@ -8,12 +8,11 @@ import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.HumanoidMobRenderer;
 import net.minecraft.client.renderer.entity.layers.CustomHeadLayer;
+import net.minecraft.client.renderer.entity.layers.ElytraLayer;
 import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
-import net.minecraft.client.renderer.entity.layers.WingsLayer;
-import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.resources.ResourceLocation;
 
-public class DroidRenderer extends HumanoidMobRenderer<DroidEntity, HumanoidRenderState, HumanoidModel<HumanoidRenderState>> {
+public class DroidRenderer extends HumanoidMobRenderer<DroidEntity, HumanoidModel<DroidEntity>> {
 
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(Hive.ID, "textures/entity/droid.png");
 
@@ -24,21 +23,16 @@ public class DroidRenderer extends HumanoidMobRenderer<DroidEntity, HumanoidRend
                         this,
                         new HumanoidArmorModel<>(context.bakeLayer(ModelLayers.PLAYER_INNER_ARMOR)),
                         new HumanoidArmorModel<>(context.bakeLayer(ModelLayers.PLAYER_OUTER_ARMOR)),
-                        context.getEquipmentRenderer()
+                        context.getModelManager()
                 )
         );
-        addLayer(new CustomHeadLayer<>(this, context.getModelSet()));
-        addLayer(new WingsLayer<>(this, context.getModelSet(), context.getEquipmentRenderer()));
+        addLayer(new CustomHeadLayer<>(this, context.getModelSet(), context.getItemInHandRenderer()));
+        addLayer(new ElytraLayer<>(this, context.getModelSet()));
     }
 
     @Override
-    public ResourceLocation getTextureLocation(HumanoidRenderState p_368654_) {
+    public ResourceLocation getTextureLocation(DroidEntity entity) {
         return TEXTURE;
-    }
-
-    @Override
-    public HumanoidRenderState createRenderState() {
-        return new HumanoidRenderState();
     }
 
 }

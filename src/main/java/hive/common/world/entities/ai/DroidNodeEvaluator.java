@@ -112,7 +112,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     @Nullable
     protected Node getDownNode(Node start, double floor) {
-        Node node = tryFindFirstGroundNode(start.x, start.z, mob.level().getMinY(), floor, 0, true);
+        Node node = tryFindFirstGroundNode(start.x, start.z, mob.level().getMinBuildHeight(), floor, 0, true);
         if (isNeighborValid(node, start)) {
             return node;
         }
@@ -133,8 +133,8 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     @Nullable
     protected Node tryFindFirstGroundNode(int x, int z, double minY, double maxY, double step, boolean stopOnFirst) {
-        int min = Math.max(mob.level().getMinY(), Mth.floor(minY));
-        for (int i = Math.min(mob.level().getMaxY(), Mth.ceil(maxY + step)); i >= min; i--) {
+        int min = Math.max(mob.level().getMinBuildHeight(), Mth.floor(minY));
+        for (int i = Math.min(mob.level().getMaxBuildHeight(), Mth.ceil(maxY + step)); i >= min; i--) {
             double floor = getFloorLevel(MUTABLE.set(x, i, z));
             if (floor >= maxY + step) {
                 continue;
@@ -306,7 +306,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     @Override
     public PathType getPathType(PathfindingContext context, int x, int y, int z) {
         PathType path = context.getPathTypeFromState(x, y, z);
-        if (path == PathType.OPEN && y >= context.level().getMinY() + 1) {
+        if (path == PathType.OPEN && y >= context.level().getMinBuildHeight() + 1) {
             return switch (context.getPathTypeFromState(x, y - 1, z)) {
                 case OPEN, WATER, LAVA, WALKABLE -> PathType.OPEN;
                 case DAMAGE_FIRE -> PathType.DAMAGE_FIRE;
