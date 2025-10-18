@@ -27,13 +27,6 @@ public final class Physics {
         return dY * dY / gravity / -2;
     }
 
-    public static double getHeightFromDistance(double gravity, double dY, double dX, double x) {
-        if (dX == 0) {
-            return 0;
-        }
-        return gravity * x * x / dX / dX / 2 + dY * x / dX;
-    }
-
     public static double getMaxHeight(double gravity, double dY, double t1, double t2) {
         if (gravity == 0) {
             return 0;
