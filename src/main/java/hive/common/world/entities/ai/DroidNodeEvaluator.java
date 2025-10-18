@@ -134,7 +134,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     @Nullable
     protected Node tryFindFirstGroundNode(int x, int z, double minY, double maxY, double step, boolean stopOnFirst) {
         int min = Math.max(mob.level().getMinBuildHeight(), Mth.floor(minY));
-        for (int i = Math.min(mob.level().getMaxBuildHeight(), Mth.ceil(maxY + step)); i >= min; i--) {
+        for (int i = Math.min(mob.level().getMaxBuildHeight() - 1, Mth.ceil(maxY + step)); i >= min; i--) {
             double floor = getFloorLevel(MUTABLE.set(x, i, z));
             if (floor >= maxY + step) {
                 continue;
