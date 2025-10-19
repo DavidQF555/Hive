@@ -99,7 +99,7 @@ public class DroidEntity extends Monster {
         goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1));
         goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 8));
         goalSelector.addGoal(4, new RandomLookAroundGoal(this));
-        targetSelector.addGoal(0, new HurtByTargetGoal(this));
+        targetSelector.addGoal(0, new HurtByTargetGoal(this).setAlertOthers(DroidEntity.class));
         targetSelector.addGoal(1, getTargetPlayerGoal(this));
     }
 
