@@ -1,24 +1,21 @@
 package hive.common.world.packets;
 
 import hive.common.Hive;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 
-@EventBusSubscriber(modid = Hive.ID)
+@Mod.EventBusSubscriber(modid = Hive.ID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class PacketRegistry {
 
-    public static final CustomPacketPayload.Type<DebugPathEffectPacket> DEBUG_PATH = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Hive.ID, "debug_path"));
+    private static int index = 0;
 
     private PacketRegistry() {
     }
 
     @SubscribeEvent
-    public static void onRegisterPayloadHandlers(RegisterPayloadHandlersEvent event) {
-        event.registrar("1")
-                .playToClient(DEBUG_PATH, DebugPathEffectPacket.CODEC, DebugPathEffectPacket::handle);
+    public static void onFMLCommonSetup(FMLCommonSetupEvent event) {
+        event.enqueueWork(() -> DebugPathEffectPacket.register(index++));
     }
 
 }

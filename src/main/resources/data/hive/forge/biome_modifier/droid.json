@@ -1,6 +1,6 @@
 {
-  "type": "neoforge:add_spawns",
-  "biomes": "#c:is_overworld",
+  "type": "forge:add_spawns",
+  "biomes": "#is_overworld",
   "spawners": {
     "type": "hive:droid",
     "weight": 15,

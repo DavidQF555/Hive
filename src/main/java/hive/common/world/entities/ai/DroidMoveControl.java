@@ -7,6 +7,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.MoveControl;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
@@ -98,7 +99,7 @@ public class DroidMoveControl extends MoveControl {
                     slow = 0.96;
                 } else {
                     slow = mob.isSprinting() ? 0.9 : mob.getWaterSlowDown();
-                    double eff = mob.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY);
+                    double eff = Math.min(1, EnchantmentHelper.getDepthStrider(mob) / 3.0);
                     if (!mob.onGround()) {
                         eff *= 0.5;
                     }
@@ -205,7 +206,7 @@ public class DroidMoveControl extends MoveControl {
     }
 
     private Optional<Double> getJumpLandingTime() {
-        return Physics.getLandingTime(-mob.getEffectiveGravity(), wantedY - mob.getY(), mob.getAttributeValue(Attributes.JUMP_STRENGTH) + mob.getJumpBoostPower());
+        return Physics.getLandingTime(-mob.getEffectiveGravity(), wantedY - mob.getY(), 0.42 + mob.getJumpBoostPower());
     }
 
     protected boolean canJumpFluid() {

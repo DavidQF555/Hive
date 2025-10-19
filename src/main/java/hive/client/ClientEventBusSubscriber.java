@@ -3,12 +3,12 @@ package hive.client;
 import hive.client.render.DroidRenderer;
 import hive.common.Hive;
 import hive.registration.EntityTypeRegistry;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.EntityRenderersEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
-@EventBusSubscriber(modid = Hive.ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = Hive.ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class ClientEventBusSubscriber {
 
     private ClientEventBusSubscriber() {

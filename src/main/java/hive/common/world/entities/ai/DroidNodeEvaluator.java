@@ -13,17 +13,17 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.PathNavigationRegion;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.level.pathfinder.Node;
-import net.minecraft.world.level.pathfinder.PathType;
-import net.minecraft.world.level.pathfinder.PathfindingContext;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
+import net.minecraftforge.common.ForgeMod;
 import org.jetbrains.annotations.Nullable;
 
 public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     private static final IntegerAABB.Mutable BOUNDS = new IntegerAABB.Mutable();
     private static final BlockPos.MutableBlockPos MUTABLE = new BlockPos.MutableBlockPos();
-    private static final Node[] CACHE = new Node[Direction.Plane.HORIZONTAL.length()];
+    private static final Node[] CACHE = new Node[Direction.Plane.HORIZONTAL.stream().toList().size()];
     private final Object2BooleanMap<IntegerAABB> jumpCollisions = new Object2BooleanOpenHashMap<>();
     private final double speedFactor, fluidJumpHeight;
     private final boolean assumeSprinting;
@@ -46,10 +46,10 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     public void prepare(PathNavigationRegion region, Mob mob) {
         super.prepare(region, mob);
         jumpXZSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor;
-        jumpYSpeed = mob.getAttributeValue(Attributes.JUMP_STRENGTH) + mob.getJumpBoostPower();
-        gravity = -mob.getAttributeValue(Attributes.GRAVITY);
+        jumpYSpeed = 0.42 + mob.getJumpBoostPower();
+        gravity = -mob.getAttributeValue(ForgeMod.ENTITY_GRAVITY.get());
         jumpHeight = Physics.getHeight(gravity, jumpYSpeed);
-        maxStep = mob.maxUpStep();
+        maxStep = mob.getStepHeight();
     }
 
     protected double getJumpXZSpeed(boolean canSprint) {
@@ -121,14 +121,13 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     @Override
     protected double getFloorLevel(BlockPos pos) {
-        BlockGetter world = currentContext.level();
         if (canFloat() || isAmphibious()) {
-            FluidState state = world.getFluidState(pos);
+            FluidState state = level.getFluidState(pos);
             if (state.is(FluidTags.WATER)) {
-                return pos.getY() + state.getHeight(world, pos);
+                return pos.getY() + state.getHeight(level, pos);
             }
         }
-        return getFloorLevel(world, pos);
+        return getFloorLevel(level, pos);
     }
 
     @Nullable
@@ -142,9 +141,9 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
             if (floor < minY) {
                 break;
             }
-            PathType path = getCachedPathType(x, i, z);
+            BlockPathTypes path = getCachedBlockType(mob, x, i, z);
             float malus = mob.getPathfindingMalus(path);
-            if (path != PathType.OPEN) {
+            if (path != BlockPathTypes.OPEN) {
                 if (malus >= 0) {
                     return getNodeAndUpdateCostToMax(x, i, z, path, malus);
                 } else if (stopOnFirst && floor < maxY) {
@@ -155,7 +154,6 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return null;
     }
 
-    @Override
     protected double getMobJumpHeight() {
         return jumpHeight;
     }
@@ -179,7 +177,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
                         continue;
                     }
                     MUTABLE.set(x, y, z);
-                    if (!currentContext.level().getBlockState(MUTABLE).getCollisionShape(currentContext.level(), MUTABLE).isEmpty()) {
+                    if (!level.getBlockState(MUTABLE).getCollisionShape(level, MUTABLE).isEmpty()) {
                         jumpCollisions.put(bounds.immutable(), true);
                         return true;
                     }
@@ -275,12 +273,12 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return true;
     }
 
-    protected boolean canJumpIn(PathType type) {
-        return type != PathType.STICKY_HONEY;
+    protected boolean canJumpIn(BlockPathTypes type) {
+        return type != BlockPathTypes.STICKY_HONEY;
     }
 
-    protected boolean canJumpOn(PathType type) {
-        return type == PathType.BLOCKED || type == PathType.FENCE || type == PathType.LEAVES;
+    protected boolean canJumpOn(BlockPathTypes type) {
+        return type == BlockPathTypes.BLOCKED || type == BlockPathTypes.FENCE || type == BlockPathTypes.LEAVES;
     }
 
     protected int addWalks(Node[] arr, Node start, double floor, int i) {
@@ -293,32 +291,29 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         }
         for (Direction dir1 : Direction.Plane.HORIZONTAL) {
             Direction dir2 = dir1.getClockWise();
-            if (isDiagonalValid(start, CACHE[dir1.get2DDataValue()], CACHE[dir2.get2DDataValue()])) {
-                Node node = getWalkNode(start, start.x + dir1.getStepX() + dir2.getStepX(), start.z + dir1.getStepZ() + dir2.getStepZ(), floor);
-                if (isDiagonalValid(node)) {
-                    arr[i++] = node;
-                }
+            Node node = getWalkNode(start, start.x + dir1.getStepX() + dir2.getStepX(), start.z + dir1.getStepZ() + dir2.getStepZ(), floor);
+            if (isDiagonalValid(start, CACHE[dir1.get2DDataValue()], CACHE[dir2.get2DDataValue()], node)) {
+                arr[i++] = node;
             }
         }
         return i;
     }
 
     @Override
-    public PathType getPathType(PathfindingContext context, int x, int y, int z) {
-        PathType path = context.getPathTypeFromState(x, y, z);
-        if (path == PathType.OPEN && y >= context.level().getMinBuildHeight() + 1) {
-            return switch (context.getPathTypeFromState(x, y - 1, z)) {
-                case OPEN, WATER, LAVA, WALKABLE -> PathType.OPEN;
-                case DAMAGE_FIRE -> PathType.DAMAGE_FIRE;
-                case DAMAGE_OTHER -> PathType.DAMAGE_OTHER;
-                case STICKY_HONEY -> PathType.STICKY_HONEY;
-                case POWDER_SNOW -> PathType.DANGER_POWDER_SNOW;
-                case DAMAGE_CAUTIOUS -> PathType.DAMAGE_CAUTIOUS;
-                case TRAPDOOR -> PathType.DANGER_TRAPDOOR;
-                default -> checkNeighbourBlocks(context, x, y, z, PathType.WALKABLE);
+    public BlockPathTypes getBlockPathType(BlockGetter world, int x, int y, int z) {
+        BlockPathTypes path = getBlockPathTypeRaw(world, MUTABLE.set(x, y, z));
+        if (path == BlockPathTypes.OPEN && y >= level.getMinBuildHeight() + 1) {
+            return switch (getBlockPathTypeRaw(world, MUTABLE.set(x, y - 1, z))) {
+                case OPEN, WATER, LAVA, WALKABLE -> BlockPathTypes.OPEN;
+                case DAMAGE_FIRE -> BlockPathTypes.DAMAGE_FIRE;
+                case DAMAGE_OTHER -> BlockPathTypes.DAMAGE_OTHER;
+                case STICKY_HONEY -> BlockPathTypes.STICKY_HONEY;
+                case POWDER_SNOW -> BlockPathTypes.DANGER_POWDER_SNOW;
+                case DAMAGE_CAUTIOUS -> BlockPathTypes.DAMAGE_CAUTIOUS;
+                default -> checkNeighbourBlocks(world, MUTABLE.set(x, y, z), BlockPathTypes.WALKABLE);
             };
-        } else if (path == PathType.STICKY_HONEY) {
-            return PathType.BLOCKED;
+        } else if (path == BlockPathTypes.STICKY_HONEY) {
+            return BlockPathTypes.BLOCKED;
         } else {
             return path;
         }
@@ -329,10 +324,10 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         BlockPos pos = new BlockPos(start.x, start.y, start.z);
         int i = 0;
         double floor = getFloorLevel(pos);
-        PathType type = getCachedPathType(start.x, start.y, start.z);
-        PathType downType = getCachedPathType(start.x, start.y - 1, start.z);
-        FluidState fluid = currentContext.level().getFluidState(pos);
-        double fluidHeight = fluid.getHeight(currentContext.level(), pos);
+        BlockPathTypes type = getCachedBlockType(mob, start.x, start.y, start.z);
+        BlockPathTypes downType = getCachedBlockType(mob, start.x, start.y - 1, start.z);
+        FluidState fluid = level.getFluidState(pos);
+        double fluidHeight = fluid.getHeight(level, pos);
         boolean canJump = canJumpIn(type) && canJumpOn(downType) && fluidHeight <= mob.getFluidJumpThreshold();
         Node down = getDownNode(start, floor);
         if (down != null) {

@@ -22,8 +22,7 @@
                 "max": 1,
                 "min": 0
               },
-              "enchantment": "looting",
-              "function": "enchanted_count_increase"
+              "function": "looting_enchant"
             }
           ],
           "name": "iron_nugget"
@@ -38,14 +37,9 @@
           "condition": "killed_by_player"
         },
         {
-          "condition": "random_chance_with_enchanted_bonus",
-          "enchanted_chance": {
-            "type": "linear",
-            "base": 0.035,
-            "per_level_above_first": 0.01
-          },
-          "enchantment": "looting",
-          "unenchanted_chance": 0.025
+          "chance": 0.025,
+          "condition": "random_chance_with_looting",
+          "looting_multiplier": 0.01
         }
       ],
       "entries": [

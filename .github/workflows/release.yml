@@ -2,7 +2,7 @@ name: Build and upload mod
 on:
   release:
     types: [ published ]
-    branches: [ neoforge-1.21.1 ]
+    branches: [ forge-1.20.1 ]
 
 jobs:
 
@@ -22,10 +22,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up JDK 21
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '17'
           distribution: 'adopt'
           cache: 'gradle'
       - name: Grant execute permission for gradlew
@@ -61,9 +61,9 @@ jobs:
           version: ${{github.event.release.tag_name}}
           version-type: beta
           changelog: ${{github.event.release.body}}
-          loaders: neoforge
-          game-versions: 1.21.1
-          java: 21
+          loaders: forge
+          game-versions: 1.20.1
+          java: 17
           modrinth-version: ${{steps.calculate_modrinth_version.outputs.modrinth_version}}
           modrinth-id: ypXGbbhR
           modrinth-token: ${{secrets.modrinth_token}}

@@ -10,6 +10,7 @@ import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.NodeEvaluator;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.level.pathfinder.PathFinder;
+import net.minecraftforge.common.ForgeMod;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Set;
@@ -35,8 +36,8 @@ public class DroidPathfinder extends PathFinder {
     @Nullable
     @Override
     public Path findPath(PathNavigationRegion region, Mob mob, Set<BlockPos> targets, float maxDist, int reachedDist, float nodeFactor) {
-        ySpeed = mob.getAttributeValue(Attributes.JUMP_STRENGTH) + mob.getJumpBoostPower();
-        gravity = -mob.getAttributeValue(Attributes.GRAVITY);
+        ySpeed = 0.42 + mob.getJumpBoostPower();
+        gravity = -mob.getAttributeValue(ForgeMod.ENTITY_GRAVITY.get());
         xzSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor;
         if (assumeSprinting || mob.isSprinting()) {
             xzSpeed += DroidEntity.JUMP_BOOST;

@@ -1,18 +1,20 @@
 package hive.common.world.entities;
 
+import hive.common.Hive;
 import hive.common.ItemTags;
 import hive.common.ServerConfigs;
 import hive.common.world.entities.ai.DroidMoveControl;
 import hive.common.world.entities.ai.DroidPathNavigation;
 import hive.common.world.packets.DebugPathEffectPacket;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -37,8 +39,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
-import net.neoforged.neoforge.fluids.FluidType;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.common.ForgeMod;
+import net.minecraftforge.fluids.FluidType;
+import net.minecraftforge.network.PacketDistributor;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -66,11 +70,11 @@ public class DroidEntity extends Monster {
     @SuppressWarnings({"deprecation", "OverrideOnly"})
     @Nullable
     @Override
-    public SpawnGroupData finalizeSpawn(ServerLevelAccessor world, DifficultyInstance difficulty, MobSpawnType spawn, @Nullable SpawnGroupData data) {
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor world, DifficultyInstance difficulty, MobSpawnType spawn, @Nullable SpawnGroupData data, @Nullable CompoundTag tag) {
         RandomSource random = world.getRandom();
         populateDefaultEquipmentSlots(random, difficulty);
-        populateDefaultEquipmentEnchantments(world, random, difficulty);
-        return super.finalizeSpawn(world, difficulty, spawn, data);
+        populateDefaultEquipmentEnchantments(random, difficulty);
+        return super.finalizeSpawn(world, difficulty, spawn, data, tag);
     }
 
     @Override
@@ -78,7 +82,7 @@ public class DroidEntity extends Monster {
         double chance = level().getDifficulty() == Difficulty.HARD ? ServerConfigs.INSTANCE.droidHardGearRate.get() : ServerConfigs.INSTANCE.droidGearRate.get();
         for (EquipmentSlot slot : EQUIPMENT_POPULATION_ORDER) {
             if (random.nextDouble() < chance) {
-                BuiltInRegistries.ITEM.getTag(ItemTags.DROID_EQUIPMENT.get(slot)).orElseThrow()
+                ForgeRegistries.ITEMS.tags().getTag(ItemTags.DROID_EQUIPMENT.get(slot))
                         .getRandomElement(random)
                         .ifPresent(item -> setItemSlot(slot, new ItemStack(item)));
             } else {
@@ -104,14 +108,21 @@ public class DroidEntity extends Monster {
     }
 
     public double getEffectiveGravity() {
-        boolean down = getDeltaMovement().y <= 0;
-        return down && hasEffect(MobEffects.SLOW_FALLING) ? Math.min(getGravity(), 0.01) : getGravity();
+        return getAttribute(ForgeMod.ENTITY_GRAVITY.get()).getValue();
     }
 
     protected TargetGoal getTargetPlayerGoal(Mob mob) {
         NearestAttackableTargetGoal<Player> goal = new NearestAttackableTargetGoal<>(mob, Player.class, false);
         goal.targetConditions = goal.targetConditions.ignoreLineOfSight();
         return goal;
+    }
+
+    @Override
+    public boolean canBeAffected(MobEffectInstance effect) {
+        if (!super.canBeAffected(effect)) {
+            return false;
+        }
+        return effect.getEffect() != MobEffects.REGENERATION && effect.getEffect() != MobEffects.POISON;
     }
 
     @Override
@@ -161,7 +172,7 @@ public class DroidEntity extends Monster {
                     Node node = path.getNode(i);
                     all.add(new BlockPos(node.x, node.y, node.z));
                 }
-                PacketDistributor.sendToPlayersTrackingEntity(this, new DebugPathEffectPacket(all));
+                Hive.CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> this), new DebugPathEffectPacket(all));
             }
         }
     }
