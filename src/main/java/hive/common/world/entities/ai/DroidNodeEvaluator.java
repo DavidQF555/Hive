@@ -127,11 +127,8 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     @Override
     protected double getFloorLevel(BlockPos pos) {
         BlockGetter world = currentContext.level();
-        if (canFloat() || isAmphibious()) {
-            FluidState state = world.getFluidState(pos);
-            if (state.is(FluidTags.WATER)) {
-                return pos.getY() + state.getHeight(world, pos);
-            }
+        if (world.getFluidState(pos).is(FluidTags.WATER)) {
+            return pos.getY();
         }
         return getFloorLevel(world, pos);
     }
@@ -207,13 +204,13 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return null;
     }
 
-    protected int addFluidNodes(Node[] arr, Node start, int i, double floor) {
+    protected int addFluidNodes(Node[] arr, Node start, int i, double fluidHeight) {
         // fluid jump nodes
         for (int x = start.x - fluidJumpWidth; x <= start.x + fluidJumpWidth; x++) {
             for (int z = start.z - fluidJumpWidth; z <= start.z + fluidJumpWidth; z++) {
                 if (x != start.x || z != start.z) {
-                    Node node = tryFindFirstGroundNode(x, z, floor - mob.getMaxFallDistance() + fluidJumpHeight, floor + fluidJumpHeight, maxStep, false);
-                    if (isNeighborValid(node, start) && canJump(start, node, floor, false)) {
+                    Node node = tryFindFirstGroundNode(x, z, fluidHeight - mob.getMaxFallDistance() + fluidJumpHeight, fluidHeight + fluidJumpHeight, maxStep, false);
+                    if (isNeighborValid(node, start) && canJump(start, node, fluidHeight, false)) {
                         arr[i++] = node;
                     }
                 }
@@ -259,7 +256,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         double distH = start.distanceToXZ(to) - 1;
         double toFloor = getFloorLevel(MUTABLE.set(to.x, to.y, to.z));
         double diff = toFloor - floor;
-        // not completely accurate, XZ speed is different if starting in water
+        // TODO not completely accurate, XZ speed is different if starting in water
         return Physics.getLandingTime(gravity, diff, jumpYSpeed)
                 .map(time -> time * getJumpXZSpeed(canSprint) > distH && canJumpCollision(start, to, floor, time))
                 .orElse(false);
@@ -380,7 +377,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
                 i = addJumps(arr, start, floor, i, canSprint);
             }
         } else if (!fluid.getFluidType().isAir()) {
-            i = addFluidNodes(arr, start, i, floor);
+            i = addFluidNodes(arr, start, i, start.y + fluidHeight);
         }
         return i;
     }
