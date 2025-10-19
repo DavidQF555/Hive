@@ -6,6 +6,7 @@ import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.PathFinder;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
@@ -47,8 +48,24 @@ public class DroidPathNavigation extends GroundPathNavigation {
     @Override
     protected double getGroundY(Vec3 pos) {
         BlockPos block = BlockPos.containing(pos);
+        BlockState state = level.getBlockState(block);
+        FluidState fluid = state.getFluidState();
+        if (!fluid.isEmpty()) {
+            FluidState above = level.getBlockState(block.above()).getFluidState();
+            float height = fluid.getHeight(level, block);
+            if (above.getType().isSame(fluid.getType())) {
+                return pos.y() + 0.5;
+            }
+            if (height > mob.getFluidJumpThreshold()) {
+                return pos.y() + height;
+            }
+        }
         BlockState below = level.getBlockState(block.below());
-        return below.isAir() || !below.getFluidState().isEmpty() ? pos.y() : WalkNodeEvaluator.getFloorLevel(level, block);
+        if (!below.isAir() && below.getFluidState().isEmpty()) {
+            return WalkNodeEvaluator.getFloorLevel(level, block);
+        } else {
+            return pos.y();
+        }
     }
 
     @Override
