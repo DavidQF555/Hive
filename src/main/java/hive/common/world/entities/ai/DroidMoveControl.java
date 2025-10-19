@@ -20,7 +20,7 @@ public class DroidMoveControl extends MoveControl {
     private final DroidEntity mob;
     private DroidOperation operation = DroidOperation.WAIT;
     private int jumpDelay;
-    private boolean stuck;
+    private boolean stuck, jumpFluid;
 
     public DroidMoveControl(DroidEntity mob) {
         super(mob);
@@ -91,13 +91,23 @@ public class DroidMoveControl extends MoveControl {
                     setOperation(DroidOperation.IN_AIR);
                 }
             } else {
-                if (dY > mob.getFluidJumpThreshold()) {
+                FluidType fluid = mob.level().getFluidState(mob.blockPosition()).getFluidType();
+                if (mob.isUnderWater()) {
+                    jumpFluid = false;
+                }
+                if (dY < 0) {
+                    mob.sinkInFluid(fluid);
+                    jumpFluid = false;
+                } else if (jumpFluid) {
                     if (mob.level().getRandom().nextFloat() < 0.8f) {
                         mob.getJumpControl().jump();
                     }
-                } else if (dY < 0) {
-                    FluidType fluid = mob.level().getFluidState(mob.blockPosition()).getFluidType();
-                    mob.sinkInFluid(fluid);
+                } else if (mob.isUnderWater()) {
+                    if (dY > 0) {
+                        mob.getJumpControl().jump();
+                    }
+                } else if (mob.getFluidTypeHeight(fluid) > mob.getFluidJumpThreshold()) {
+                    jumpFluid = true;
                 }
                 double slow;
                 if (mob.hasEffect(MobEffects.DOLPHINS_GRACE)) {
