@@ -51,5 +51,5 @@
       "rolls": 1
     }
   ],
-  "random_sequence": "minecraft:entities/zombie"
+  "random_sequence": "hive:entities/droid"
 }

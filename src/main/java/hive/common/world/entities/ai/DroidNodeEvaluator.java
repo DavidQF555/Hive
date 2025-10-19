@@ -39,7 +39,9 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     }
 
     public static int getMinCacheSize(int jumpWidth, int fluidJumpWidth) {
-        return 9 + Math.max((jumpWidth * 2 + 1) * (jumpWidth * 2 + 1), (fluidJumpWidth * 2 + 1) * (fluidJumpWidth * 2 + 1));
+        int jumpNodes = (jumpWidth * 2 + 1) * (jumpWidth * 2 + 1);
+        int fluidNodes = (fluidJumpWidth * 2 + 1) * (fluidJumpWidth * 2 + 1);
+        return 9 + Math.max(jumpNodes, fluidNodes);
     }
 
     @Override
@@ -63,6 +65,11 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     public void done() {
         super.done();
         jumpCollisions.clear();
+    }
+
+    @Override
+    public Node getStart() {
+        return getStartNode(mob.blockPosition());
     }
 
     @Nullable
@@ -121,11 +128,8 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     @Override
     protected double getFloorLevel(BlockPos pos) {
-        if (canFloat() || isAmphibious()) {
-            FluidState state = level.getFluidState(pos);
-            if (state.is(FluidTags.WATER)) {
-                return pos.getY() + state.getHeight(level, pos);
-            }
+        if (level.getFluidState(pos).is(FluidTags.WATER)) {
+            return pos.getY();
         }
         return getFloorLevel(level, pos);
     }
@@ -190,13 +194,33 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return false;
     }
 
-    protected int addFluidJumps(Node[] arr, Node start, int i, double floor) {
+    @Nullable
+    protected Node getFluidNode(Node start, int x, int y, int z) {
+        BlockPathTypes path = getCachedBlockType(mob, x, y, z);
+        Node node = getNodeAndUpdateCostToMax(x, y, z, path, mob.getPathfindingMalus(path));
+        if (isNeighborValid(node, start)) {
+            return node;
+        }
+        return null;
+    }
+
+    protected int addFluidNodes(Node[] arr, Node start, int i, double fluidHeight) {
+        // fluid jump nodes
         for (int x = start.x - fluidJumpWidth; x <= start.x + fluidJumpWidth; x++) {
             for (int z = start.z - fluidJumpWidth; z <= start.z + fluidJumpWidth; z++) {
-                Node node = tryFindFirstGroundNode(x, z, floor - mob.getMaxFallDistance() + fluidJumpHeight, floor + fluidJumpHeight, maxStep, false);
-                if (isNeighborValid(node, start) && canJump(start, node, floor, false)) {
-                    arr[i++] = node;
+                if (x != start.x || z != start.z) {
+                    Node node = tryFindFirstGroundNode(x, z, fluidHeight - mob.getMaxFallDistance() + fluidJumpHeight, fluidHeight + fluidJumpHeight, maxStep, false);
+                    if (isNeighborValid(node, start) && canJump(start, node, fluidHeight, false)) {
+                        arr[i++] = node;
+                    }
                 }
+            }
+        }
+        // fluid up node
+        if (start.y + 1 < level.getMaxBuildHeight()) {
+            Node up = getFluidNode(start, start.x, start.y + 1, start.z);
+            if (up != null) {
+                arr[i++] = up;
             }
         }
         return i;
@@ -226,7 +250,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         double distH = start.distanceToXZ(to) - 1;
         double toFloor = getFloorLevel(MUTABLE.set(to.x, to.y, to.z));
         double diff = toFloor - floor;
-        // not completely accurate, XZ speed is different if starting in water
+        // TODO not completely accurate, XZ speed is different if starting in water
         return Physics.getLandingTime(gravity, diff, jumpYSpeed)
                 .map(time -> time * getJumpXZSpeed(canSprint) > distH && canJumpCollision(start, to, floor, time))
                 .orElse(false);
@@ -281,7 +305,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return type == BlockPathTypes.BLOCKED || type == BlockPathTypes.FENCE || type == BlockPathTypes.LEAVES;
     }
 
-    protected int addWalks(Node[] arr, Node start, double floor, int i) {
+    protected int addHorizontal(Node[] arr, Node start, double floor, int i) {
         for (Direction direction : Direction.Plane.HORIZONTAL) {
             Node node = getWalkNode(start, start.x + direction.getStepX(), start.z + direction.getStepZ(), floor);
             if (node != null) {
@@ -333,7 +357,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         if (down != null) {
             arr[i++] = down;
         }
-        i = addWalks(arr, start, floor, i);
+        i = addHorizontal(arr, start, floor, i);
         if (canJump) {
             if (getMobJumpHeight() >= 1) {
                 Node up = getUpNode(start, floor);
@@ -344,7 +368,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
                 i = addJumps(arr, start, floor, i, canSprint);
             }
         } else if (!fluid.getFluidType().isAir()) {
-            i = addFluidJumps(arr, start, i, floor);
+            i = addFluidNodes(arr, start, i, start.y + fluidHeight);
         }
         return i;
     }
