@@ -217,13 +217,13 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
             }
         }
         // fluid vertical nodes
-        if (start.y + 1 <= currentContext.level().getMaxY()) {
+        if (start.y + 1 < currentContext.level().getMaxBuildHeight()) {
             Node up = getFluidNode(start, start.x, start.y + 1, start.z);
             if (up != null) {
                 arr[i++] = up;
             }
         }
-        if (start.y - 1 >= currentContext.level().getMinY()) {
+        if (start.y - 1 >= currentContext.level().getMinBuildHeight()) {
             Node down = getFluidNode(start, start.x, start.y - 1, start.z);
             if (down != null) {
                 arr[i++] = down;
