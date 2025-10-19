@@ -185,7 +185,7 @@ public class DroidMoveControl extends MoveControl {
     }
 
     public boolean shouldSprint() {
-        return operation != DroidOperation.WAIT && !mob.isInSwimmableFluid() && (!mob.isInWater() || mob.isUnderWater());
+        return operation != DroidOperation.WAIT && (mob.isUnderWater() || (!mob.isInWater() && !mob.isInSwimmableFluid()));
     }
 
     protected void setOperation(DroidOperation operation) {
