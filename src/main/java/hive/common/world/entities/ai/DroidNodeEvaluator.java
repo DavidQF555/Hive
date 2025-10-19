@@ -39,7 +39,9 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     }
 
     public static int getMinCacheSize(int jumpWidth, int fluidJumpWidth) {
-        return 9 + Math.max((jumpWidth * 2 + 1) * (jumpWidth * 2 + 1), (fluidJumpWidth * 2 + 1) * (fluidJumpWidth * 2 + 1) + 1);
+        int jumpNodes = (jumpWidth * 2 + 1) * (jumpWidth * 2 + 1);
+        int fluidNodes = (fluidJumpWidth * 2 + 1) * (fluidJumpWidth * 2 + 1);
+        return 9 + Math.max(jumpNodes, fluidNodes);
     }
 
     @Override
@@ -216,17 +218,11 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
                 }
             }
         }
-        // fluid vertical nodes
+        // fluid up node
         if (start.y + 1 <= currentContext.level().getMaxY()) {
             Node up = getFluidNode(start, start.x, start.y + 1, start.z);
             if (up != null) {
                 arr[i++] = up;
-            }
-        }
-        if (start.y - 1 >= currentContext.level().getMinY()) {
-            Node down = getFluidNode(start, start.x, start.y - 1, start.z);
-            if (down != null) {
-                arr[i++] = down;
             }
         }
         return i;
