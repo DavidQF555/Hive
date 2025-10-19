@@ -8,6 +8,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.fluids.FluidType;
 
 import java.util.Optional;
 
@@ -90,8 +91,13 @@ public class DroidMoveControl extends MoveControl {
                     setOperation(DroidOperation.IN_AIR);
                 }
             } else {
-                if (dY > mob.getFluidJumpThreshold() && mob.level().getRandom().nextFloat() < 0.8f) {
-                    mob.getJumpControl().jump();
+                if (dY > mob.getFluidJumpThreshold()) {
+                    if (mob.level().getRandom().nextFloat() < 0.8f) {
+                        mob.getJumpControl().jump();
+                    }
+                } else if (dY < 0) {
+                    FluidType fluid = mob.level().getFluidState(mob.blockPosition()).getFluidType();
+                    mob.sinkInFluid(fluid);
                 }
                 double slow;
                 if (mob.hasEffect(MobEffects.DOLPHINS_GRACE)) {

@@ -65,6 +65,11 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         jumpCollisions.clear();
     }
 
+    @Override
+    public Node getStart() {
+        return getStartNode(mob.blockPosition());
+    }
+
     @Nullable
     protected Node getJumpNode(Node start, int x, int z, double floor, boolean canSprint) {
         double y = floor + getMobJumpHeight();
