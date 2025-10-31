@@ -1,7 +1,10 @@
 package hive.common.world.entities;
 
+import com.mojang.serialization.Dynamic;
+import hive.common.Hive;
 import hive.common.ItemTags;
 import hive.common.ServerConfigs;
+import hive.common.world.entities.ai.DroidAi;
 import hive.common.world.entities.ai.DroidMoveControl;
 import hive.common.world.entities.ai.DroidPathNavigation;
 import hive.common.world.packets.DebugPathEffectPacket;
@@ -11,6 +14,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.RandomSource;
+import net.minecraft.util.profiling.Profiler;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
@@ -18,20 +23,11 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.SpawnGroupData;
+import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
-import net.minecraft.world.entity.ai.goal.OpenDoorGoal;
-import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
-import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
-import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
-import net.minecraft.world.entity.ai.goal.target.TargetGoal;
 import net.minecraft.world.entity.monster.Monster;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
@@ -63,6 +59,27 @@ public class DroidEntity extends Monster {
                 .add(Attributes.FOLLOW_RANGE, 64);
     }
 
+    @Override
+    protected Brain.Provider<DroidEntity> brainProvider() {
+        return Brain.provider(DroidAi.MEMORY_TYPES, DroidAi.SENSOR_TYPES);
+    }
+
+    @Override
+    protected Brain<?> makeBrain(Dynamic<?> context) {
+        return DroidAi.makeBrain(this, brainProvider().makeBrain(context));
+    }
+
+    @Override
+    public Brain<DroidEntity> getBrain() {
+        return (Brain<DroidEntity>) super.getBrain();
+    }
+
+    @Nullable
+    @Override
+    public LivingEntity getTarget() {
+        return getTargetFromBrain();
+    }
+
     @SuppressWarnings({"deprecation", "OverrideOnly"})
     @Nullable
     @Override
@@ -90,23 +107,6 @@ public class DroidEntity extends Monster {
     @Override
     protected float getFlyingSpeed() {
         return getSpeed() * FLY_MULTIPLIER;
-    }
-
-    @Override
-    protected void registerGoals() {
-        goalSelector.addGoal(0, new OpenDoorGoal(this, false));
-        goalSelector.addGoal(1, new MeleeAttackGoal(this, 1, false));
-        goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1));
-        goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 8));
-        goalSelector.addGoal(4, new RandomLookAroundGoal(this));
-        targetSelector.addGoal(0, new HurtByTargetGoal(this).setAlertOthers(DroidEntity.class));
-        targetSelector.addGoal(1, getTargetPlayerGoal(this));
-    }
-
-    protected TargetGoal getTargetPlayerGoal(Mob mob) {
-        NearestAttackableTargetGoal<Player> goal = new NearestAttackableTargetGoal<>(mob, Player.class, false);
-        goal.targetConditions = goal.targetConditions.ignoreLineOfSight();
-        return goal;
     }
 
     @Override
@@ -142,6 +142,11 @@ public class DroidEntity extends Monster {
     @Override
     protected void customServerAiStep(ServerLevel world) {
         super.customServerAiStep(world);
+        ProfilerFiller profiler = Profiler.get();
+        profiler.push(Hive.ID + ":droidBrain");
+        getBrain().tick(world, this);
+        profiler.pop();
+        DroidAi.updateActivity(this);
         if (getMoveControl() instanceof DroidMoveControl control) {
             boolean sprint = control.shouldSprint();
             if (sprint != isSprinting()) {
