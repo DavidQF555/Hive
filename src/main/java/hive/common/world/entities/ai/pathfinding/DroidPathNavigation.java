@@ -1,6 +1,7 @@
-package hive.common.world.entities.ai;
+package hive.common.world.entities.ai.pathfinding;
 
 import hive.common.world.entities.DroidEntity;
+import hive.common.world.entities.ai.DroidMoveControl;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.level.BlockGetter;

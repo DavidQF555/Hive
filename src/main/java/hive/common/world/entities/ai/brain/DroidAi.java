@@ -1,4 +1,4 @@
-package hive.common.world.entities.ai;
+package hive.common.world.entities.ai.brain;
 
 import com.google.common.collect.ImmutableList;
 import com.mojang.datafixers.util.Pair;
