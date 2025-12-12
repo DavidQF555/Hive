@@ -1,7 +1,9 @@
 package hive.common.rl;
 
 public record RewardState(
-        double damage,
-        int kills
+        double damageDealt,
+        int kills,
+        int deaths,
+        double damageTaken
 ) {
 }

@@ -4,24 +4,34 @@ import hive.common.rl.RewardState;
 
 public class MutableRewardState {
 
-    private double damage;
-    private int kills;
+    private double damageDealt, damageTaken;
+    private int kills, deaths;
 
-    public void addDamage(double damage) {
-        this.damage += damage;
+    public void addDamageDealt(double damage) {
+        this.damageDealt += damage;
     }
 
     public void addKills(int kills) {
         this.kills += kills;
     }
 
+    public void addDamageTaken(double damage) {
+        this.damageTaken += damage;
+    }
+
+    public void addDeaths(int deaths) {
+        this.deaths += deaths;
+    }
+
     public void reset() {
-        damage = 0;
+        damageDealt = 0;
+        damageTaken = 0;
         kills = 0;
+        deaths = 0;
     }
 
     public RewardState immutable() {
-        return new RewardState(damage, kills);
+        return new RewardState(damageDealt, kills, deaths, damageTaken);
     }
 
 }

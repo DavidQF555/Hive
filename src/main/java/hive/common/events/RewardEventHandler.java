@@ -18,19 +18,35 @@ public final class RewardEventHandler {
 
     @SubscribeEvent
     public static void postLivingDamage(LivingDamageEvent.Post event) {
-        Entity source = event.getSource().getEntity();
-        if (source instanceof DroidEntity && !source.level().isClientSide()) {
-            HiveMind hive = HiveMind.getOrCreate(source.getServer());
-            hive.addReward(new RewardState(event.getNewDamage(), 0));
+        if (!event.getEntity().level().isClientSide()) {
+            double damageDealt = 0;
+            double damageTaken = 0;
+            Entity source = event.getSource().getEntity();
+            if (source instanceof DroidEntity) {
+                damageDealt = event.getNewDamage();
+            }
+            if (event.getEntity() instanceof DroidEntity) {
+                damageTaken = event.getNewDamage();
+            }
+            if (damageDealt != 0 || damageTaken != 0) {
+                HiveMind hive = HiveMind.getOrCreate(event.getEntity().getServer());
+                hive.addReward(new RewardState(damageDealt, 0, 0, damageTaken));
+            }
         }
     }
 
     @SubscribeEvent
     public static void onLivingDeath(LivingDeathEvent event) {
-        Entity source = event.getSource().getEntity();
-        if (source instanceof DroidEntity && !source.level().isClientSide()) {
-            HiveMind hive = HiveMind.getOrCreate(source.getServer());
-            hive.addReward(new RewardState(0, 1));
+        if (!event.getEntity().level().isClientSide()) {
+            Entity source = event.getSource().getEntity();
+            if (source instanceof DroidEntity) {
+                HiveMind hive = HiveMind.getOrCreate(source.getServer());
+                hive.addReward(new RewardState(0, 1, 0, 0));
+            }
+            if (event.getEntity() instanceof DroidEntity) {
+                HiveMind hive = HiveMind.getOrCreate(event.getEntity().getServer());
+                hive.addReward(new RewardState(0, 0, 1, 0));
+            }
         }
     }
 

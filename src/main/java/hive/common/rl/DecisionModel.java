@@ -7,14 +7,11 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.neoforged.neoforge.common.util.INBTSerializable;
 
-import java.util.Arrays;
 import java.util.List;
 
 public class DecisionModel implements INBTSerializable<CompoundTag> {
 
     private static final double LEARNING_RATE = 0.05;
-    private static final double KILLS_WEIGHT = 1;
-    private static final double DAMAGE_WEIGHT = 0.025;
     private final double[][] parameters = new double[DecisionState.values().length][11];
 
     public DecisionState evaluate(DecisionModelInput input) {
@@ -30,9 +27,8 @@ public class DecisionModel implements INBTSerializable<CompoundTag> {
 
     protected double[] evaluateSoftmax(DecisionModelInput input) {
         double sum = 0;
-        double[] values = getValues(input);
+        double[] values = getExpValues(input);
         for (int i = 0; i < values.length; i++) {
-            values[i] = Math.exp(values[i]);
             sum += values[i];
         }
         for (int i = 0; i < values.length; i++) {
@@ -41,7 +37,7 @@ public class DecisionModel implements INBTSerializable<CompoundTag> {
         return values;
     }
 
-    protected double[] getValues(DecisionModelInput input) {
+    protected double[] getExpValues(DecisionModelInput input) {
         double[] arr = input.arr();
         double[] scores = new double[parameters.length];
         for (int i = 0; i < parameters.length; i++) {
@@ -49,34 +45,44 @@ public class DecisionModel implements INBTSerializable<CompoundTag> {
                 scores[i] += parameters[i][j] * arr[j];
             }
         }
+        for (int i = 0; i < scores.length; i++) {
+            scores[i] = Math.exp(scores[i]);
+        }
         return scores;
     }
 
     protected double getReward(RewardState reward) {
-        return KILLS_WEIGHT * reward.kills() + DAMAGE_WEIGHT * reward.damage();
+        if (reward.kills() > 0) {
+            return 1 - Math.exp(-reward.kills() / 2.0);
+        } else {
+            double x = reward.damageDealt() * 0.025 + reward.damageTaken() * -0.001 + reward.deaths() * -0.25;
+            double exp = 0.5 * Math.exp(-x);
+            return (0.5 - exp) / (1 + exp);
+        }
     }
 
-    public void train(List<TrainingData> datas, RewardState rewardState) {
-        if (datas.isEmpty()) {
+    public void train(List<TrainingData> data, RewardState rewardState) {
+        if (data.isEmpty()) {
             return;
         }
         double reward = getReward(rewardState);
-        double[][] d = new double[parameters.length][parameters[0].length];
-        for (TrainingData data : datas) {
-            double[] values = getValues(data.input());
-            int index = data.decision().ordinal();
-            double num = values[index];
-            double denom = Arrays.stream(values).sum();
-            if (denom == 0) {
-                continue;
-            }
-            for (int j = 0; j < d[index].length; j++) {
-                d[index][j] += parameters[index][j] * (1 - num / denom);
+        double[][] gradients = new double[parameters.length][parameters[0].length];
+        for (TrainingData entry : data) {
+            double[] values = evaluateSoftmax(entry.input());
+            int index = entry.decision().ordinal();
+            for (int i = 0; i < gradients.length; i++) {
+                for (int j = 0; j < gradients[i].length; j++) {
+                    if (i == index) {
+                        gradients[i][j] += entry.input().arr()[j] * (1 - values[i]);
+                    } else {
+                        gradients[i][j] -= entry.input().arr()[j] * values[i];
+                    }
+                }
             }
         }
         for (int i = 0; i < parameters.length; i++) {
             for (int j = 0; j < parameters[i].length; j++) {
-                parameters[i][j] += LEARNING_RATE * reward * d[i][j] / datas.size();
+                parameters[i][j] += LEARNING_RATE * reward * gradients[i][j] / data.size();
             }
         }
     }

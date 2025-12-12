@@ -103,13 +103,16 @@ public class HiveMind extends SavedData {
     }
 
     public void addReward(RewardState reward) {
-        this.reward.addDamage(reward.damage());
+        this.reward.addDamageDealt(reward.damageDealt());
         this.reward.addKills(reward.kills());
+        this.reward.addDamageTaken(reward.damageTaken());
+        this.reward.addDeaths(reward.deaths());
     }
 
     public void consume() {
         model.train(training, reward.immutable());
         reward.reset();
+        training.clear();
     }
 
     @Override

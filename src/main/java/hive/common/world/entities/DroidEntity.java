@@ -48,7 +48,7 @@ public class DroidEntity extends Monster {
     public static final float FLY_MULTIPLIER = 0.2f;
     public static final double JUMP_BOOST = 0.2;
     public static final List<EquipmentSlot> EQUIPMENT_POPULATION_ORDER = List.of(EquipmentSlot.MAINHAND, EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND);
-    private DecisionState decision = DecisionState.WAIT;
+    private DecisionState decision = DecisionState.ATTACK;
 
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
         super(type, world);
@@ -109,7 +109,7 @@ public class DroidEntity extends Monster {
     }
 
     public DecisionState getDecision() {
-        return isAggressive() ? decision : DecisionState.WAIT;
+        return decision;
     }
 
     protected void setDecision(DecisionState decision) {
