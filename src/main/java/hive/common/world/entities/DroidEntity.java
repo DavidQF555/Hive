@@ -4,6 +4,9 @@ import com.mojang.serialization.Dynamic;
 import hive.common.Hive;
 import hive.common.ItemTags;
 import hive.common.ServerConfigs;
+import hive.common.rl.DecisionState;
+import hive.common.rl.TrainingData;
+import hive.common.world.HiveMind;
 import hive.common.world.entities.ai.DroidMoveControl;
 import hive.common.world.entities.ai.brain.DroidAi;
 import hive.common.world.entities.ai.pathfinding.DroidPathNavigation;
@@ -45,6 +48,7 @@ public class DroidEntity extends Monster {
     public static final float FLY_MULTIPLIER = 0.2f;
     public static final double JUMP_BOOST = 0.2;
     public static final List<EquipmentSlot> EQUIPMENT_POPULATION_ORDER = List.of(EquipmentSlot.MAINHAND, EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND);
+    private DecisionState decision = DecisionState.WAIT;
 
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
         super(type, world);
@@ -104,6 +108,14 @@ public class DroidEntity extends Monster {
         }
     }
 
+    public DecisionState getDecision() {
+        return isAggressive() ? decision : DecisionState.WAIT;
+    }
+
+    protected void setDecision(DecisionState decision) {
+        this.decision = decision;
+    }
+
     @Override
     protected float getFlyingSpeed() {
         return getSpeed() * FLY_MULTIPLIER;
@@ -147,6 +159,12 @@ public class DroidEntity extends Monster {
         getBrain().tick(world, this);
         profiler.pop();
         DroidAi.updateActivity(this);
+        if (isAggressive()) {
+            HiveMind hive = HiveMind.getOrCreate(world.getServer());
+            TrainingData resp = hive.evaluate(world, this);
+            setDecision(resp.decision());
+            hive.addTrainingData(resp.input(), resp.decision());
+        }
         if (getMoveControl() instanceof DroidMoveControl control) {
             boolean sprint = control.shouldSprint();
             if (sprint != isSprinting()) {

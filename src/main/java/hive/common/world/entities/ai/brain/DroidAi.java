@@ -2,14 +2,15 @@ package hive.common.world.entities.ai.brain;
 
 import com.google.common.collect.ImmutableList;
 import com.mojang.datafixers.util.Pair;
+import hive.common.rl.DecisionState;
 import hive.common.world.entities.DroidEntity;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.behavior.BehaviorControl;
 import net.minecraft.world.entity.ai.behavior.DoNothing;
-import net.minecraft.world.entity.ai.behavior.EraseMemoryIf;
 import net.minecraft.world.entity.ai.behavior.InteractWithDoor;
 import net.minecraft.world.entity.ai.behavior.LookAtTargetSink;
 import net.minecraft.world.entity.ai.behavior.MeleeAttack;
@@ -22,6 +23,8 @@ import net.minecraft.world.entity.ai.behavior.SetWalkTargetAwayFrom;
 import net.minecraft.world.entity.ai.behavior.SetWalkTargetFromAttackTargetIfTargetOutOfReach;
 import net.minecraft.world.entity.ai.behavior.StartAttacking;
 import net.minecraft.world.entity.ai.behavior.StopAttackingIfTargetInvalid;
+import net.minecraft.world.entity.ai.behavior.declarative.BehaviorBuilder;
+import net.minecraft.world.entity.ai.behavior.declarative.Trigger;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ai.sensing.Sensor;
 import net.minecraft.world.entity.ai.sensing.SensorType;
@@ -50,8 +53,7 @@ public final class DroidAi {
             MemoryModuleType.ATTACK_TARGET,
             MemoryModuleType.ATTACK_COOLING_DOWN,
             MemoryModuleType.INTERACTION_TARGET,
-            MemoryModuleType.PATH,
-            MemoryModuleType.AVOID_TARGET
+            MemoryModuleType.PATH
     );
 
     private DroidAi() {
@@ -61,7 +63,6 @@ public final class DroidAi {
         initCoreActivity(brain);
         initIdleActivity(brain);
         initFightActivity(droid, brain);
-        initRetreatActivity(brain);
         brain.setCoreActivities(Set.of(Activity.CORE));
         brain.setDefaultActivity(Activity.IDLE);
         brain.useDefaultActivity();
@@ -98,24 +99,11 @@ public final class DroidAi {
                 10,
                 ImmutableList.of(
                         StopAttackingIfTargetInvalid.create((world, target) -> !isNearestValidAttackTarget(world, droid, target)),
-                        SetWalkTargetFromAttackTargetIfTargetOutOfReach.create(1),
-                        MeleeAttack.create(20)
+                        triggerIfDecision(DecisionState.RETREAT, SetWalkTargetAwayFrom.entity(MemoryModuleType.ATTACK_TARGET, 1, 12, true)),
+                        triggerIfDecision(DecisionState.ATTACK, (Trigger<Mob>) SetWalkTargetFromAttackTargetIfTargetOutOfReach.create(1)),
+                        triggerIfDecision(DecisionState.ATTACK, MeleeAttack.create(20))
                 ),
                 MemoryModuleType.ATTACK_TARGET
-        );
-    }
-
-    private static void initRetreatActivity(Brain<DroidEntity> brain) {
-        brain.addActivityAndRemoveMemoryWhenStopped(
-                Activity.AVOID,
-                10,
-                ImmutableList.of(
-                        SetWalkTargetAwayFrom.entity(MemoryModuleType.AVOID_TARGET, 1, 12, true),
-                        createIdleLookBehaviors(),
-                        createIdleMovementBehaviors(),
-                        EraseMemoryIf.create(DroidAi::wantsToStopFleeing, MemoryModuleType.AVOID_TARGET)
-                ),
-                MemoryModuleType.AVOID_TARGET
         );
     }
 
@@ -144,17 +132,19 @@ public final class DroidAi {
         );
     }
 
+    private static <E extends LivingEntity> OneShot<E> triggerIfDecision(DecisionState state, Trigger<E> behavior) {
+        return BehaviorBuilder.sequence(
+                BehaviorBuilder.triggerIf((world, entity) -> entity instanceof DroidEntity && ((DroidEntity) entity).getDecision() == state),
+                behavior
+        );
+    }
+
     private static boolean isNearestValidAttackTarget(ServerLevel world, DroidEntity entity, LivingEntity target) {
         return findNearestValidAttackTarget(world, entity).filter(t -> t == target).isPresent();
     }
 
     private static Optional<? extends LivingEntity> findNearestValidAttackTarget(ServerLevel world, DroidEntity entity) {
         return entity.getBrain().getMemory(MemoryModuleType.NEAREST_VISIBLE_ATTACKABLE_PLAYER);
-    }
-
-    private static boolean wantsToStopFleeing(DroidEntity p_35009_) {
-        Brain<DroidEntity> brain = p_35009_.getBrain();
-        return !brain.hasMemoryValue(MemoryModuleType.AVOID_TARGET);
     }
 
     public static void updateActivity(DroidEntity droid) {
