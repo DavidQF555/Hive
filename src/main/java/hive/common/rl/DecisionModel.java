@@ -28,8 +28,8 @@ public class DecisionModel implements INBTSerializable<CompoundTag> {
     protected double[] evaluateSoftmax(DecisionModelInput input) {
         double sum = 0;
         double[] values = getExpValues(input);
-        for (int i = 0; i < values.length; i++) {
-            sum += values[i];
+        for (double value : values) {
+            sum += value;
         }
         for (int i = 0; i < values.length; i++) {
             values[i] /= sum;
@@ -53,9 +53,15 @@ public class DecisionModel implements INBTSerializable<CompoundTag> {
 
     protected double getReward(RewardState reward) {
         if (reward.kills() > 0) {
-            return 1 - Math.exp(-reward.kills() / 2.0);
+            return 1 - Math.exp(reward.kills() / -2.0);
         } else {
-            double x = reward.damageDealt() * 0.025 + reward.damageTaken() * -0.001 + reward.deaths() * -0.25;
+            double x;
+            if(reward.damageDealt() <= 0) {
+                x = reward.damageTaken() * -0.001 + reward.deaths() * -0.25 - 5;
+            }
+            else {
+                x = reward.damageDealt() * 0.025 + reward.damageTaken() * -0.001 + reward.deaths() * -0.25;
+            }
             double exp = 0.5 * Math.exp(-x);
             return (0.5 - exp) / (1 + exp);
         }

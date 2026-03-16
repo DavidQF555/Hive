@@ -2,6 +2,8 @@ package hive.common.rl;
 
 public record DecisionModelInput(double[] arr) {
 
+    public static final int SIZE = 11;
+
     public DecisionModelInput(
             double nearbyDroids,
             double health,
