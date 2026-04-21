@@ -79,7 +79,7 @@ public class DroidMeleeAttackGoal extends Goal {
         ticksUntilNextAttack = Math.max(ticksUntilNextAttack - 1, 0);
 
         if (ticksUntilNextAttack == 0 && mob.isWithinMeleeAttackRange(target) && mob.getSensing().hasLineOfSight(target)) {
-            ticksUntilNextAttack = 20;
+            ticksUntilNextAttack = getAttackCooldownTicks();
             mob.swing(InteractionHand.MAIN_HAND);
             if (mob.level() instanceof ServerLevel serverLevel) {
                 mob.doHurtTarget(serverLevel, target);
@@ -95,6 +95,11 @@ public class DroidMeleeAttackGoal extends Goal {
                 lastPathedTargetPos = target.position();
             }
         }
+    }
+
+    private int getAttackCooldownTicks() {
+        double speed = mob.getAttributeValue(Attributes.ATTACK_SPEED);
+        return speed > 0 ? (int) Math.ceil(20.0 / speed) : 20;
     }
 
     private Vec3 findSafeIntercept(LivingEntity target) {
@@ -175,4 +180,4 @@ public class DroidMeleeAttackGoal extends Goal {
         return true;
     }
 
-}
+}

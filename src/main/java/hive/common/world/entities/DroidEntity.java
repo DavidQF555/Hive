@@ -59,8 +59,16 @@ public class DroidEntity extends Monster {
     public static AttributeSupplier.Builder createAttributes() {
         return createMobAttributes()
                 .add(Attributes.ATTACK_DAMAGE, 1)
+                .add(Attributes.ATTACK_SPEED, 4.0)
+                .add(Attributes.ENTITY_INTERACTION_RANGE, 3.0)
                 .add(Attributes.MOVEMENT_SPEED, 0.1f)
                 .add(Attributes.FOLLOW_RANGE, 64);
+    }
+
+    @Override
+    public boolean isWithinMeleeAttackRange(LivingEntity target) {
+        double range = getAttributeValue(Attributes.ENTITY_INTERACTION_RANGE);
+        return target.getBoundingBox().distanceToSqr(getEyePosition()) < range * range;
     }
 
     @SuppressWarnings({"deprecation", "OverrideOnly"})
