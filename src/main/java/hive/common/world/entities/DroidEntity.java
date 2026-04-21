@@ -2,6 +2,7 @@ package hive.common.world.entities;
 
 import hive.common.ItemTags;
 import hive.common.ServerConfigs;
+import hive.common.world.entities.ai.DroidMeleeAttackGoal;
 import hive.common.world.entities.ai.DroidMoveControl;
 import hive.common.world.entities.ai.DroidPathNavigation;
 import hive.common.world.packets.DebugPathEffectPacket;
@@ -23,7 +24,6 @@ import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.OpenDoorGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
@@ -95,7 +95,7 @@ public class DroidEntity extends Monster {
     @Override
     protected void registerGoals() {
         goalSelector.addGoal(0, new OpenDoorGoal(this, false));
-        goalSelector.addGoal(1, new MeleeAttackGoal(this, 1, false));
+        goalSelector.addGoal(1, new DroidMeleeAttackGoal(this, 1, false));
         goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1));
         goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 8));
         goalSelector.addGoal(4, new RandomLookAroundGoal(this));
