@@ -15,6 +15,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -63,6 +64,11 @@ public class DroidEntity extends Monster {
                 .add(Attributes.ENTITY_INTERACTION_RANGE, 3.0)
                 .add(Attributes.MOVEMENT_SPEED, 0.1f)
                 .add(Attributes.FOLLOW_RANGE, 64);
+    }
+
+    @Override
+    protected float getKnockback(Entity target, DamageSource source) {
+        return super.getKnockback(target, source) + (isSprinting() ? 1.0F : 0.0F);
     }
 
     @Override
