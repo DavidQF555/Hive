@@ -34,6 +34,7 @@ import net.minecraft.world.entity.ai.goal.target.TargetGoal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.pathfinder.Node;
@@ -44,13 +45,14 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class DroidEntity extends Monster {
 
     public static final float FLY_MULTIPLIER = 0.2f;
     public static final double JUMP_BOOST = 0.2;
     public static final List<EquipmentSlot> EQUIPMENT_POPULATION_ORDER = List.of(EquipmentSlot.MAINHAND, EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND);
-    private long nextAttackTick;
+    private long nextAttackTick; // tick when attack is off cooldown
 
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
         super(type, world);
@@ -84,6 +86,32 @@ public class DroidEntity extends Monster {
     public boolean isWithinMeleeAttackRange(LivingEntity target) {
         double range = getAttributeValue(Attributes.ENTITY_INTERACTION_RANGE);
         return target.getBoundingBox().distanceToSqr(getEyePosition()) < range * range;
+    }
+
+    // modify knockback to use hit direction instead of body yaw
+    @Override
+    public boolean doHurtTarget(ServerLevel level, Entity target) {
+        float damage = (float) getAttributeValue(Attributes.ATTACK_DAMAGE);
+        ItemStack weapon = getWeaponItem();
+        DamageSource source = Optional.ofNullable(weapon.getItem().getDamageSource(this))
+                .orElse(damageSources().mobAttack(this));
+        damage = EnchantmentHelper.modifyDamage(level, weapon, target, source, damage);
+        damage += weapon.getItem().getAttackDamageBonus(target, damage, source);
+        boolean hurt = target.hurtServer(level, source, damage);
+        if (hurt) {
+            float kb = getKnockback(target, source);
+            if (kb > 0.0F && target instanceof LivingEntity living) {
+                living.knockback(kb * 0.5F, getX() - target.getX(), getZ() - target.getZ());
+                setDeltaMovement(getDeltaMovement().multiply(0.6, 1.0, 0.6));
+            }
+            if (target instanceof LivingEntity living) {
+                weapon.hurtEnemy(living, this);
+            }
+            EnchantmentHelper.doPostAttackEffects(level, target, source);
+            setLastHurtMob(target);
+            playAttackSound();
+        }
+        return hurt;
     }
 
     @SuppressWarnings({"deprecation", "OverrideOnly"})
