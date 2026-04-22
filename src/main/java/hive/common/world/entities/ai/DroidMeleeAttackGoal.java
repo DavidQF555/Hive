@@ -31,7 +31,6 @@ public class DroidMeleeAttackGoal extends Goal {
     private int historyCount;
     private int historyIndex;
     private int ticksUntilNextPathRecalculation;
-    private int ticksUntilNextAttack;
     private Vec3 lastPathedTargetPos = Vec3.ZERO;
 
     public DroidMeleeAttackGoal(DroidEntity mob, double speedModifier, boolean followTargetEvenIfNotSeen) {
@@ -69,7 +68,6 @@ public class DroidMeleeAttackGoal extends Goal {
     public void start() {
         mob.setAggressive(true);
         ticksUntilNextPathRecalculation = 0;
-        ticksUntilNextAttack = 0;
         historyCount = 0;
         historyIndex = 0;
     }
@@ -95,10 +93,10 @@ public class DroidMeleeAttackGoal extends Goal {
         recordTargetPosition(target);
 
         mob.getLookControl().setLookAt(target, 30, 30);
-        ticksUntilNextAttack = Math.max(ticksUntilNextAttack - 1, 0);
 
-        if (ticksUntilNextAttack == 0 && mob.isWithinMeleeAttackRange(target) && mob.getSensing().hasLineOfSight(target)) {
-            ticksUntilNextAttack = getAttackCooldownTicks();
+        long now = mob.level().getGameTime();
+        if (now >= mob.getNextAttackTick() && mob.isWithinMeleeAttackRange(target) && mob.getSensing().hasLineOfSight(target)) {
+            mob.setNextAttackTick(now + getAttackCooldownTicks());
             mob.swing(InteractionHand.MAIN_HAND);
             if (mob.level() instanceof ServerLevel serverLevel) {
                 mob.doHurtTarget(serverLevel, target);

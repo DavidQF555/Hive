@@ -50,6 +50,7 @@ public class DroidEntity extends Monster {
     public static final float FLY_MULTIPLIER = 0.2f;
     public static final double JUMP_BOOST = 0.2;
     public static final List<EquipmentSlot> EQUIPMENT_POPULATION_ORDER = List.of(EquipmentSlot.MAINHAND, EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND);
+    private long nextAttackTick;
 
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
         super(type, world);
@@ -64,6 +65,14 @@ public class DroidEntity extends Monster {
                 .add(Attributes.ENTITY_INTERACTION_RANGE, 3.0)
                 .add(Attributes.MOVEMENT_SPEED, 0.1f)
                 .add(Attributes.FOLLOW_RANGE, 64);
+    }
+
+    public long getNextAttackTick() {
+        return nextAttackTick;
+    }
+
+    public void setNextAttackTick(long tick) {
+        this.nextAttackTick = tick;
     }
 
     @Override
