@@ -196,14 +196,13 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         return false;
     }
 
-    @Nullable
-    protected Node getFluidNode(Node start, int x, int y, int z) {
+    protected Node getFluidNode(int x, int y, int z) {
         PathType path = getCachedPathType(x, y, z);
-        Node node = getNodeAndUpdateCostToMax(x, y, z, path, mob.getPathfindingMalus(path));
-        if (isNeighborValid(node, start)) {
-            return node;
+        float malus = mob.getPathfindingMalus(path);
+        if (malus < 0) {
+            return getBlockedNode(x, y, z);
         }
-        return null;
+        return getNodeAndUpdateCostToMax(x, y, z, path, malus);
     }
 
     protected int addFluidNodes(Node[] arr, Node start, int i, double fluidHeight) {
@@ -220,8 +219,8 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         }
         // fluid up node
         if (start.y + 1 <= currentContext.level().getMaxY()) {
-            Node up = getFluidNode(start, start.x, start.y + 1, start.z);
-            if (up != null) {
+            Node up = getFluidNode(start.x, start.y + 1, start.z);
+            if (isNeighborValid(up, start)) {
                 arr[i++] = up;
             }
         }
