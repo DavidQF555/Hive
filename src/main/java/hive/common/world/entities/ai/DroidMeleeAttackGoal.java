@@ -3,7 +3,6 @@ package hive.common.world.entities.ai;
 import hive.common.world.entities.DroidEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -19,7 +18,7 @@ public class DroidMeleeAttackGoal extends Goal {
 
     private static final double PREDICTION_DAMPING = 0.5;
     private static final int PREDICTION_ITERATIONS = 3;
-    private static final double REPATH_DISTANCE_SQ = 4.0;
+    private static final double REPATH_DISTANCE_SQ = 25.0;
     private static final double PREDICTION_MAX_DISTANCE = 16.0;
     private static final int INTERCEPT_SCAN_STEPS = 4;
     private static final int SNAP_DOWN_BLOCKS = 4;
@@ -138,27 +137,24 @@ public class DroidMeleeAttackGoal extends Goal {
         Vec3 targetPos = target.position();
         Vec3 raw = predictFinalIntercept(target);
 
-        double dx = raw.x() - targetPos.x();
-        double dz = raw.z() - targetPos.z();
-        double dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist > PREDICTION_MAX_DISTANCE) {
-            double scale = PREDICTION_MAX_DISTANCE / dist;
-            raw = new Vec3(targetPos.x() + dx * scale, targetPos.y(), targetPos.z() + dz * scale);
+        Vec3 diff = raw.subtract(targetPos);
+        if (diff.lengthSqr() > PREDICTION_MAX_DISTANCE * PREDICTION_MAX_DISTANCE) {
+            diff = diff.normalize().scale(PREDICTION_MAX_DISTANCE);
         }
 
-        BlockPos lastSafe = target.blockPosition();
-        int baseY = lastSafe.getY();
+        BlockPos.MutableBlockPos lastSafe = target.blockPosition().mutable();
         Level level = mob.level();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int i = 1; i <= INTERCEPT_SCAN_STEPS; i++) {
             double t = (double) i / INTERCEPT_SCAN_STEPS;
-            int ix = Mth.floor(targetPos.x() + (raw.x() - targetPos.x()) * t);
-            int iz = Mth.floor(targetPos.z() + (raw.z() - targetPos.z()) * t);
-            int iy = snapY(ix, baseY, iz, level, cursor);
-            if (iy == Integer.MIN_VALUE) {
-                break;
+            BlockPos extrapolated = BlockPos.containing(targetPos.add(diff.scale(t)));
+            if (!mob.level().getFluidState(extrapolated).isEmpty()) {
+                lastSafe.set(extrapolated);
+            } else {
+                // TODO: +1 is for target jump height
+                int y = snapY(extrapolated.getX(), lastSafe.getY() + 1, extrapolated.getZ(), level, cursor);
+                lastSafe.set(extrapolated.getX(), y, extrapolated.getZ());
             }
-            lastSafe = new BlockPos(ix, iy, iz);
         }
         return Vec3.atBottomCenterOf(lastSafe);
     }
@@ -175,18 +171,16 @@ public class DroidMeleeAttackGoal extends Goal {
 
         Vec3 dampedVel = new Vec3(
                 targetVel.x() * PREDICTION_DAMPING,
-                0,
+                targetVel.y() * PREDICTION_DAMPING,
                 targetVel.z() * PREDICTION_DAMPING
         );
 
         Vec3 estimated = targetPos;
         for (int i = 0; i < PREDICTION_ITERATIONS; i++) {
-            double dx = estimated.x() - mobPos.x();
-            double dz = estimated.z() - mobPos.z();
-            double travelTicks = Math.sqrt(dx * dx + dz * dz) / mobSpeed;
+            double travelTicks = estimated.distanceTo(mobPos) / mobSpeed;
             estimated = new Vec3(
                     targetPos.x() + dampedVel.x() * travelTicks,
-                    targetPos.y(),
+                    targetPos.y() + dampedVel.y() * travelTicks,
                     targetPos.z() + dampedVel.z() * travelTicks
             );
         }

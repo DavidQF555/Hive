@@ -1,5 +1,7 @@
 package hive.client.render;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import hive.common.Hive;
 import hive.common.world.entities.DroidEntity;
 import net.minecraft.client.model.HumanoidArmorModel;
@@ -12,6 +14,7 @@ import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
 import net.minecraft.client.renderer.entity.layers.WingsLayer;
 import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 
 public class DroidRenderer extends HumanoidMobRenderer<DroidEntity, HumanoidRenderState, HumanoidModel<HumanoidRenderState>> {
 
@@ -39,6 +42,18 @@ public class DroidRenderer extends HumanoidMobRenderer<DroidEntity, HumanoidRend
     @Override
     public HumanoidRenderState createRenderState() {
         return new HumanoidRenderState();
+    }
+
+    @Override
+    protected void setupRotations(HumanoidRenderState state, PoseStack pose, float bodyRot, float scale) {
+        super.setupRotations(state, pose, bodyRot, scale);
+        if (state.swimAmount > 0) {
+            float tilt = Mth.lerp(state.swimAmount, 0, -90 - state.xRot);
+            pose.mulPose(Axis.XP.rotationDegrees(tilt));
+            if (state.isVisuallySwimming) {
+                pose.translate(0, -1f, 0.3f);
+            }
+        }
     }
 
 }

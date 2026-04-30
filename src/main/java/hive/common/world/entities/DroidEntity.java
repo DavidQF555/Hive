@@ -5,6 +5,7 @@ import hive.common.ServerConfigs;
 import hive.common.world.entities.ai.DroidMeleeAttackGoal;
 import hive.common.world.entities.ai.DroidMoveControl;
 import hive.common.world.entities.ai.DroidPathNavigation;
+import hive.common.world.entities.ai.ModedNode;
 import hive.common.world.packets.DebugPathEffectPacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -16,11 +17,13 @@ import net.minecraft.world.Difficulty;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -144,6 +147,11 @@ public class DroidEntity extends Monster {
     }
 
     @Override
+    public EntityDimensions getDefaultDimensions(Pose pose) {
+        return pose == Pose.SWIMMING ? EntityDimensions.scalable(0.6f, 0.6f) : super.getDefaultDimensions(pose);
+    }
+
+    @Override
     protected void registerGoals() {
         goalSelector.addGoal(0, new OpenDoorGoal(this, false));
         goalSelector.addGoal(1, new DroidMeleeAttackGoal(this, 1, false));
@@ -202,12 +210,15 @@ public class DroidEntity extends Monster {
         if (ServerConfigs.INSTANCE.pathDebug.get() && world.getGameTime() % 20 == 0) {
             Path path = getNavigation().getPath();
             if (path != null) {
-                List<BlockPos> all = new ArrayList<>();
-                for (int i = 0; i < path.getNodeCount(); i++) {
+                int n = path.getNodeCount();
+                List<BlockPos> all = new ArrayList<>(n);
+                byte[] modes = new byte[n];
+                for (int i = 0; i < n; i++) {
                     Node node = path.getNode(i);
                     all.add(new BlockPos(node.x, node.y, node.z));
+                    modes[i] = (byte) ModedNode.modeOf(node).ordinal();
                 }
-                PacketDistributor.sendToPlayersTrackingEntity(this, new DebugPathEffectPacket(all));
+                PacketDistributor.sendToPlayersTrackingEntity(this, new DebugPathEffectPacket(all, modes));
             }
         }
     }

@@ -10,15 +10,16 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.List;
 
-public record DebugPathEffectPacket(List<BlockPos> pos) implements CustomPacketPayload {
+public record DebugPathEffectPacket(List<BlockPos> pos, byte[] modes) implements CustomPacketPayload {
 
     public static final StreamCodec<RegistryFriendlyByteBuf, DebugPathEffectPacket> CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC.apply(ByteBufCodecs.list()), DebugPathEffectPacket::pos,
+            ByteBufCodecs.BYTE_ARRAY, DebugPathEffectPacket::modes,
             DebugPathEffectPacket::new
     );
 
     public static void handle(DebugPathEffectPacket packet, IPayloadContext context) {
-        ClientHelper.renderPath(packet.pos());
+        ClientHelper.renderPath(packet.pos(), packet.modes());
     }
 
     @Override
