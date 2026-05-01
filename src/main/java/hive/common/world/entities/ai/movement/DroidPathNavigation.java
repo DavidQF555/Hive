@@ -1,6 +1,10 @@
-package hive.common.world.entities.ai;
+package hive.common.world.entities.ai.movement;
 
 import hive.common.world.entities.DroidEntity;
+import hive.common.world.entities.ai.pathfinding.DroidNodeEvaluator;
+import hive.common.world.entities.ai.pathfinding.DroidPathfinder;
+import hive.common.world.entities.ai.pathfinding.ModedNode;
+import hive.common.world.entities.ai.pathfinding.MovementMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityDimensions;

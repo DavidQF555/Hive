@@ -1,6 +1,7 @@
-package hive.common.world.entities.ai;
+package hive.common.world.entities.ai.pathfinding;
 
 import hive.common.world.Physics;
+import hive.common.world.entities.ai.movement.DroidPathNavigation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Mob;

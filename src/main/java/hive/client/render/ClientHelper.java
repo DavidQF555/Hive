@@ -1,6 +1,6 @@
 package hive.client.render;
 
-import hive.common.world.entities.ai.MovementMode;
+import hive.common.world.entities.ai.pathfinding.MovementMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;

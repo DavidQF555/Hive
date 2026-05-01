@@ -1,4 +1,4 @@
-package hive.common.world.entities.ai;
+package hive.common.world.entities.ai.pathfinding;
 
 import net.minecraft.world.level.pathfinder.Node;
 
