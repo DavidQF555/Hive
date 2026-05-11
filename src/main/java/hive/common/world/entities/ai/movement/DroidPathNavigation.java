@@ -19,8 +19,12 @@ import net.minecraft.world.phys.Vec3;
 
 public class DroidPathNavigation extends GroundPathNavigation {
 
+    // half-width for the square the node evaluator scans around the start node for jump candidates
     public static final int JUMP_WIDTH = 5;
+    // same as JUMP_WIDTH but for jump candidates while in fluid
     public static final int FLUID_JUMP_WIDTH = 1;
+    // vertical distance the mob is allowed to jump out of fluid
+    // matches AmphibiousPathNavigation fluid traversal heuristic
     private static final double FLUID_JUMP_HEIGHT = 1.0 / 9;
     private final DroidEntity mob;
 

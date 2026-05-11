@@ -15,8 +15,14 @@ import java.util.Optional;
 
 public class DroidMoveControl extends MoveControl {
 
+    // numerical tolerance for comparisons
     private static final double ERROR = 1E-7;
+    // velocity tolerance in blocks/tick for starting jumps
     private static final double JUMP_ERROR = 0.1;
+    // slope to target above which SWIMMING rises or sinks
+    private static final double SWIM_SLOPE_THRESHOLD = 0.1;
+    // probability of triggering a surface jump in WADE, mirrors AmphibiousPathNavigation behavior
+    private static final float WADE_JUMP_CHANCE = 0.8f;
     private final DroidEntity mob;
     private DroidOperation operation = DroidOperation.WAIT;
     private boolean stuck, jumpFluid;
@@ -60,8 +66,8 @@ public class DroidMoveControl extends MoveControl {
                         double tZ = dZ / Physics.Constants.AIR_FRICTION / t.get();
                         if (mob.isSprinting()) {
                             // lower requirements when sprinting because there is boost
-                            double adjX = tX + Math.sin(rot * Math.PI / 180) * DroidEntity.JUMP_BOOST;
-                            double adjZ = tZ - Math.cos(rot * Math.PI / 180) * DroidEntity.JUMP_BOOST;
+                            double adjX = tX + Math.sin(rot * Math.PI / 180) * Physics.Constants.JUMP_BOOST;
+                            double adjZ = tZ - Math.cos(rot * Math.PI / 180) * Physics.Constants.JUMP_BOOST;
                             // ensure sign doesn't change
                             tX = (tX > 0 && adjX < 0) || (tX < 0 && adjX > 0) ? 0 : adjX;
                             tZ = (tZ > 0 && adjZ < 0) || (tZ < 0 && adjZ > 0) ? 0 : adjZ;
@@ -112,7 +118,7 @@ public class DroidMoveControl extends MoveControl {
                     mob.sinkInFluid(fluid);
                     jumpFluid = false;
                 } else if (jumpFluid) {
-                    if (mob.level().getRandom().nextFloat() < 0.8f) {
+                    if (mob.level().getRandom().nextFloat() < WADE_JUMP_CHANCE) {
                         mob.getJumpControl().jump();
                     }
                 } else if (mob.isUnderWater()) {
@@ -160,9 +166,10 @@ public class DroidMoveControl extends MoveControl {
                 float targetPitch = len < ERROR ? 0 : (float) (-Math.atan2(dY, len) * 180 / Math.PI);
                 mob.setXRot(targetPitch);
                 FluidType fluid = mob.level().getFluidState(mob.blockPosition()).getFluidType();
-                if (dY > 0.1) {
+                double slope = len < ERROR ? Math.signum(dY) : dY / len;
+                if (slope > SWIM_SLOPE_THRESHOLD) {
                     mob.getJumpControl().jump();
-                } else if (dY < -0.1) {
+                } else if (slope < -SWIM_SLOPE_THRESHOLD) {
                     mob.sinkInFluid(fluid);
                 }
                 mob.setYRot(rot);
@@ -196,8 +203,8 @@ public class DroidMoveControl extends MoveControl {
             xxa *= -1;
         }
         if (!mob.onGround()) {
-            zza /= DroidEntity.FLY_MULTIPLIER;
-            xxa /= DroidEntity.FLY_MULTIPLIER;
+            zza /= Physics.Constants.FLY_MULTIPLIER;
+            xxa /= Physics.Constants.FLY_MULTIPLIER;
         }
         if (Math.abs(zza) < ERROR || !Double.isFinite(zza)) {
             mob.setZza(0);

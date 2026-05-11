@@ -98,6 +98,11 @@ public final class Physics {
         public static final float DEFAULT_BLOCK_FRICTION = 0.6f;
         // sprinting move speed multiplier
         public static final float SPRINT_MULTIPLIER = 1.3f;
+        // horizontal boost added in the facing direction by LivingEntity.jumpFromGround when sprinting
+        public static final double JUMP_BOOST = 0.2;
+        // airborne speed scaler used in place of vanilla's flat getFlyingSpeed
+        // player returns 0.02 walking, 0.026 sprinting, multiplying MOVEMENT_SPEED by this scaler reproduces those player numbers automatically
+        public static final float FLY_MULTIPLIER = 0.2f;
         // both ground and air friction applied
         public static final float GROUND_FRICTION = DEFAULT_BLOCK_FRICTION * AIR_FRICTION;
         public static final float GROUND_ACCEL_PER_MOVE_SPEED = GROUND_ACCEL_K / (DEFAULT_BLOCK_FRICTION * DEFAULT_BLOCK_FRICTION * DEFAULT_BLOCK_FRICTION);

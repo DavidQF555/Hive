@@ -1,7 +1,6 @@
 package hive.common.world.entities.ai.pathfinding;
 
 import hive.common.world.Physics;
-import hive.common.world.entities.DroidEntity;
 import it.unimi.dsi.fastutil.longs.Long2BooleanMap;
 import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -28,6 +27,10 @@ import java.util.Set;
 
 public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
+    // 3 x 3 x 3 excluding self
+    private static final int SWIM_NEIGHBOR_COUNT = 3 * 3 * 3 - 1;
+    // 4 cardinal + 4 diagonal + 1 self step
+    private static final int WALK_NEIGHBOR_BASELINE = 9;
     private static final IntegerAABB.Mutable BOUNDS = new IntegerAABB.Mutable();
     private static final BlockPos.MutableBlockPos MUTABLE = new BlockPos.MutableBlockPos();
     private static final Node[] CACHE = new Node[Direction.Plane.HORIZONTAL.length()];
@@ -52,8 +55,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     public static int getMinCacheSize(int jumpWidth, int fluidJumpWidth) {
         int jumpNodes = (jumpWidth * 2 + 1) * (jumpWidth * 2 + 1);
         int fluidNodes = (fluidJumpWidth * 2 + 1) * (fluidJumpWidth * 2 + 1);
-        int swimNodes = 26;
-        return Math.max(swimNodes, 9 + Math.max(jumpNodes, fluidNodes));
+        return Math.max(SWIM_NEIGHBOR_COUNT, WALK_NEIGHBOR_BASELINE + Math.max(jumpNodes, fluidNodes));
     }
 
     @Override
@@ -72,7 +74,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
 
     protected double getJumpXZSpeed(boolean canSprint) {
         if (canSprint && (assumeSprinting || mob.isSprinting())) {
-            return jumpXZSpeed + DroidEntity.JUMP_BOOST;
+            return jumpXZSpeed + Physics.Constants.JUMP_BOOST;
         }
         return jumpXZSpeed;
     }

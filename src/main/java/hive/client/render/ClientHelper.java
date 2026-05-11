@@ -12,6 +12,7 @@ import java.util.List;
 
 public final class ClientHelper {
 
+    // spacing between particles drawn along each path
     private static final double DISTANCE = 0.1;
 
     private ClientHelper() {

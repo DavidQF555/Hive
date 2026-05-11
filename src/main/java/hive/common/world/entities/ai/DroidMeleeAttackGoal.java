@@ -16,13 +16,27 @@ import java.util.EnumSet;
 
 public class DroidMeleeAttackGoal extends Goal {
 
+    // damping factor on the smoothed target velocity for predictions
     private static final double PREDICTION_DAMPING = 0.5;
+    // iteration count for the calculating the estimate
     private static final int PREDICTION_ITERATIONS = 3;
-    private static final double REPATH_DISTANCE_SQ = 25.0;
-    private static final double PREDICTION_MAX_DISTANCE = 16.0;
+    // distance squared the target must drift from the last pathed pos before triggering an unscheduled repath
+    private static final double REPATH_DISTANCE_SQ = 25;
+    // upper bound on how far ahead of the target the predicted intercept may be placed
+    private static final double PREDICTION_MAX_DISTANCE = 16;
+    // number of intermediate samples between the target and the predicted intercept for finding safe pos
     private static final int INTERCEPT_SCAN_STEPS = 4;
+    // max blocks to scan downward from the extrapolated pos when finding ground for the intercept
     private static final int SNAP_DOWN_BLOCKS = 4;
+    // buffer size for target position samples
     private static final int VELOCITY_SAMPLE_WINDOW = 3;
+    // minimum samples needed before getSmoothedVelocity returns a non-zero estimate
+    private static final int MIN_VELOCITY_SAMPLES = 2;
+    // ticks before re-running pathfinding, same as MeleeAttackGoal
+    private static final int REPATH_DELAY_BASE = 4;
+    private static final int REPATH_DELAY_RANDOM = 7;
+    // ticks per second to convert the ATTACK_SPEED attribute into a tick cooldown
+    private static final int TICKS_PER_SECOND = 20;
     private final DroidEntity mob;
     private final double speedModifier;
     private final boolean followTargetEvenIfNotSeen;
@@ -104,7 +118,7 @@ public class DroidMeleeAttackGoal extends Goal {
 
         boolean drifted = target.position().distanceToSqr(lastPathedTargetPos) > REPATH_DISTANCE_SQ;
         if (--ticksUntilNextPathRecalculation <= 0 || drifted) {
-            ticksUntilNextPathRecalculation = 4 + mob.getRandom().nextInt(7);
+            ticksUntilNextPathRecalculation = REPATH_DELAY_BASE + mob.getRandom().nextInt(REPATH_DELAY_RANDOM);
             if (!mob.isPassenger()) {
                 Vec3 predicted = findSafeIntercept(target);
                 mob.getNavigation().moveTo(predicted.x(), predicted.y(), predicted.z(), speedModifier);
@@ -120,7 +134,7 @@ public class DroidMeleeAttackGoal extends Goal {
     }
 
     private Vec3 getSmoothedVelocity() {
-        if (historyCount < 2) {
+        if (historyCount < MIN_VELOCITY_SAMPLES) {
             return Vec3.ZERO;
         }
         int newest = (historyIndex - 1 + VELOCITY_SAMPLE_WINDOW) % VELOCITY_SAMPLE_WINDOW;
@@ -130,7 +144,7 @@ public class DroidMeleeAttackGoal extends Goal {
 
     private int getAttackCooldownTicks() {
         double speed = mob.getAttributeValue(Attributes.ATTACK_SPEED);
-        return speed > 0 ? (int) Math.ceil(20.0 / speed) : 20;
+        return speed > 0 ? (int) Math.ceil((double) TICKS_PER_SECOND / speed) : TICKS_PER_SECOND;
     }
 
     private Vec3 findSafeIntercept(LivingEntity target) {

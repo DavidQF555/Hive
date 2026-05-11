@@ -2,6 +2,7 @@ package hive.common.world.entities;
 
 import hive.common.ItemTags;
 import hive.common.ServerConfigs;
+import hive.common.world.Physics;
 import hive.common.world.entities.ai.DroidMeleeAttackGoal;
 import hive.common.world.entities.ai.movement.DroidMoveControl;
 import hive.common.world.entities.ai.movement.DroidPathNavigation;
@@ -52,9 +53,10 @@ import java.util.Optional;
 
 public class DroidEntity extends Monster {
 
-    public static final float FLY_MULTIPLIER = 0.2f;
-    public static final double JUMP_BOOST = 0.2;
     public static final List<EquipmentSlot> EQUIPMENT_POPULATION_ORDER = List.of(EquipmentSlot.MAINHAND, EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND);
+    // knockback damping in doHurtTarget, same as Mob.doHurtTarget
+    private static final float KNOCKBACK_TARGET_SCALE = 0.5f;
+    private static final double KNOCKBACK_SELF_DAMP = 0.6;
     private long nextAttackTick; // tick when attack is off cooldown
 
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
@@ -104,8 +106,10 @@ public class DroidEntity extends Monster {
         if (hurt) {
             float kb = getKnockback(target, source);
             if (kb > 0.0F && target instanceof LivingEntity living) {
-                living.knockback(kb * 0.5F, getX() - target.getX(), getZ() - target.getZ());
-                setDeltaMovement(getDeltaMovement().multiply(0.6, 1.0, 0.6));
+                // mirrors vanilla Mob.doHurtTarget: half the knockback impulse is applied to the target,
+                // and the attacker's own xz momentum is dampened to 0.6 to brace against the hit
+                living.knockback(kb * KNOCKBACK_TARGET_SCALE, getX() - target.getX(), getZ() - target.getZ());
+                setDeltaMovement(getDeltaMovement().multiply(KNOCKBACK_SELF_DAMP, 1.0, KNOCKBACK_SELF_DAMP));
             }
             if (target instanceof LivingEntity living) {
                 weapon.hurtEnemy(living, this);
@@ -143,7 +147,7 @@ public class DroidEntity extends Monster {
 
     @Override
     protected float getFlyingSpeed() {
-        return getSpeed() * FLY_MULTIPLIER;
+        return getSpeed() * Physics.Constants.FLY_MULTIPLIER;
     }
 
     @Override
