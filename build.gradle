@@ -1,9 +1,7 @@
 plugins {
     id 'java-library'
-    id 'eclipse'
-    id 'idea'
     id 'maven-publish'
-    id 'net.neoforged.gradle.userdev' version '7.0.173'
+    id 'net.neoforged.gradle.userdev' version '7.1.26'
 }
 
 tasks.named('wrapper', Wrapper).configure {
@@ -49,7 +47,10 @@ runs {
 
 }
 
-// sourceSets.main.resources { srcDir 'src/generated/resources' }
+//sourceSets.main.resources {
+//    srcDir('src/generated/resources')
+//    exclude("src/generated/**/.cache")
+//}
 
 configurations {
     runtimeClasspath.extendsFrom localRuntime
@@ -64,7 +65,6 @@ tasks.withType(ProcessResources).configureEach {
             minecraft_version      : minecraft_version,
             minecraft_version_range: minecraft_version_range,
             neo_version            : neo_version,
-            neo_version_range      : neo_version_range,
             loader_version_range   : loader_version_range,
             mod_id                 : mod_id,
             mod_name               : mod_name,
