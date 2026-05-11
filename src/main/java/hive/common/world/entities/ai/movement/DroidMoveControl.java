@@ -17,10 +17,8 @@ public class DroidMoveControl extends MoveControl {
 
     private static final double ERROR = 1E-7;
     private static final double JUMP_ERROR = 0.1;
-    private static final int JUMP_CAP = 5;
     private final DroidEntity mob;
     private DroidOperation operation = DroidOperation.WAIT;
-    private int jumpDelay;
     private boolean stuck, jumpFluid;
 
     public DroidMoveControl(DroidEntity mob) {
@@ -33,7 +31,7 @@ public class DroidMoveControl extends MoveControl {
         double max = this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED);
         if (operation == DroidOperation.WAIT) {
             setPose(Pose.STANDING);
-            setDeltaMovement(0, 0, max);
+            setDeltaMovement(0, 0, max, 1); // friction is negligible here because target speed is 0
             return;
         }
         double dX = wantedX - mob.getX();
@@ -58,11 +56,19 @@ public class DroidMoveControl extends MoveControl {
                         setPose(Pose.STANDING);
                         BlockPos below = mob.getBlockPosBelowThatAffectsMyMovement();
                         float friction = mob.level().getBlockState(below).getFriction(mob.level(), below, mob) * Physics.Constants.AIR_FRICTION;
-                        double tX = dX / friction / t.get();
-                        double tZ = dZ / friction / t.get();
+                        double tX = dX / Physics.Constants.AIR_FRICTION / t.get();
+                        double tZ = dZ / Physics.Constants.AIR_FRICTION / t.get();
+                        if (mob.isSprinting()) {
+                            // lower requirements when sprinting because there is boost
+                            double adjX = tX + Math.sin(rot * Math.PI / 180) * DroidEntity.JUMP_BOOST;
+                            double adjZ = tZ - Math.cos(rot * Math.PI / 180) * DroidEntity.JUMP_BOOST;
+                            // ensure sign doesn't change
+                            tX = (tX > 0 && adjX < 0) || (tX < 0 && adjX > 0) ? 0 : adjX;
+                            tZ = (tZ > 0 && adjZ < 0) || (tZ < 0 && adjZ > 0) ? 0 : adjZ;
+                        }
                         mob.setYRot(rot);
-                        setDeltaMovement(tX, tZ, max);
-                        if (++jumpDelay > JUMP_CAP || canJump(tX, tZ)) {
+                        setDeltaMovement(tX, tZ, max, friction);
+                        if (mob.noJumpDelay <= 0 && canJump(tX, tZ)) {
                             mob.getJumpControl().jump();
                         }
                     }
@@ -84,7 +90,7 @@ public class DroidMoveControl extends MoveControl {
                 } else {
                     setPose(Pose.STANDING);
                     mob.setYRot(rot);
-                    setDeltaMovement(dX / Physics.Constants.AIR_FRICTION / t.get(), dZ / Physics.Constants.AIR_FRICTION / t.get(), max);
+                    setDeltaMovement(dX / Physics.Constants.AIR_FRICTION / t.get(), dZ / Physics.Constants.AIR_FRICTION / t.get(), max, Physics.Constants.AIR_FRICTION);
                 }
             }
         }
@@ -126,7 +132,7 @@ public class DroidMoveControl extends MoveControl {
                 double tX = dX * speed / len / slow;
                 double tZ = dZ * speed / len / slow;
                 mob.setYRot(rot);
-                setDeltaMovement(tX, tZ, max);
+                setDeltaMovement(tX, tZ, max, slow);
             }
         }
         if (this.operation == DroidOperation.MOVE_TO) {
@@ -138,10 +144,12 @@ public class DroidMoveControl extends MoveControl {
                 setPose(Pose.STANDING);
                 BlockPos below = mob.getBlockPosBelowThatAffectsMyMovement();
                 float friction = mob.level().getBlockState(below).getFriction(mob.level(), below, mob) * Physics.Constants.AIR_FRICTION;
-                double tX = dX * speed / len / friction;
-                double tZ = dZ * speed / len / friction;
+                double terminal = max * Physics.Constants.GROUND_WALK_SPEED_MULTIPLIER;
+                double targetSpeed = Math.min(len, terminal);
+                double tX = dX * targetSpeed / len;
+                double tZ = dZ * targetSpeed / len;
                 mob.setYRot(rot);
-                setDeltaMovement(tX, tZ, max);
+                setDeltaMovement(tX, tZ, max, friction);
             }
         }
         if (operation == DroidOperation.SWIMMING) {
@@ -171,14 +179,14 @@ public class DroidMoveControl extends MoveControl {
         }
     }
 
-    private void setDeltaMovement(double cX, double cZ, double speed) {
+    private void setDeltaMovement(double cX, double cZ, double speed, double friction) {
         mob.setSpeed((float) speed);
         double rot = mob.getYRot() * Math.PI / 180;
         double dX = -Math.sin(rot);
         double dZ = Math.cos(rot);
         Vec3 delta = mob.getDeltaMovement();
-        double changeDX = (cX - delta.x()) / speed;
-        double changeDZ = (cZ - delta.z()) / speed;
+        double changeDX = (cX / friction - delta.x()) / speed;
+        double changeDZ = (cZ / friction - delta.z()) / speed;
         double zza = changeDX * dX + changeDZ * dZ;
         double sX = changeDX - zza * dX;
         double sZ = changeDZ - zza * dZ;
@@ -212,7 +220,14 @@ public class DroidMoveControl extends MoveControl {
     }
 
     public boolean shouldSprint() {
-        return operation != DroidOperation.WAIT && operation != DroidOperation.WADE;
+        if (operation == DroidOperation.WADE) {
+            return false;
+        }
+        if (operation == DroidOperation.WAIT) {
+            // stay sprinting through wait state if still moving
+            return mob.getNavigation().isInProgress();
+        }
+        return true;
     }
 
     protected void setOperation(DroidOperation operation) {
@@ -225,19 +240,11 @@ public class DroidMoveControl extends MoveControl {
 
     protected boolean canJump(double tX, double tZ) {
         Vec3 speed = mob.getDeltaMovement();
-        double xSpeed = speed.x();
-        double zSpeed = speed.z();
-        if (mob.isSprinting()) {
-            double rot = mob.getYRot() * Math.PI / 180;
-            xSpeed -= Math.sin(rot) * DroidEntity.JUMP_BOOST;
-            zSpeed += Math.cos(rot) * DroidEntity.JUMP_BOOST;
-        }
-        return Math.abs(tX - xSpeed) < JUMP_ERROR && Math.abs(tZ - zSpeed) < JUMP_ERROR;
+        return Math.abs(tX - speed.x()) < JUMP_ERROR && Math.abs(tZ - speed.z()) < JUMP_ERROR;
     }
 
     public void jumpTowards(double x, double y, double z, double speed) {
         if (operation == DroidOperation.WAIT || operation == DroidOperation.MOVE_TO) {
-            jumpDelay = 0;
             setWantedPosition(x, y, z, speed);
             setOperation(DroidOperation.START_JUMP);
         }
