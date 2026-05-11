@@ -1,10 +1,12 @@
 package hive.common.world.entities.ai;
 
+import hive.common.world.Physics;
 import hive.common.world.entities.DroidEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.player.Player;
@@ -20,12 +22,8 @@ public class DroidMeleeAttackGoal extends Goal {
     private static final double PREDICTION_DAMPING = 0.5;
     // iteration count for the calculating the estimate
     private static final int PREDICTION_ITERATIONS = 3;
-    // distance squared the target must drift from the last pathed pos before triggering an unscheduled repath
-    private static final double REPATH_DISTANCE_SQ = 25;
     // upper bound on how far ahead of the target the predicted intercept may be placed
-    private static final double PREDICTION_MAX_DISTANCE = 16;
-    // number of intermediate samples between the target and the predicted intercept for finding safe pos
-    private static final int INTERCEPT_SCAN_STEPS = 4;
+    private static final double PREDICTION_MAX_DISTANCE = 8;
     // max blocks to scan downward from the extrapolated pos when finding ground for the intercept
     private static final int SNAP_DOWN_BLOCKS = 4;
     // buffer size for target position samples
@@ -44,7 +42,6 @@ public class DroidMeleeAttackGoal extends Goal {
     private int historyCount;
     private int historyIndex;
     private int ticksUntilNextPathRecalculation;
-    private Vec3 lastPathedTargetPos = Vec3.ZERO;
 
     public DroidMeleeAttackGoal(DroidEntity mob, double speedModifier, boolean followTargetEvenIfNotSeen) {
         this.mob = mob;
@@ -93,7 +90,6 @@ public class DroidMeleeAttackGoal extends Goal {
         }
         mob.setAggressive(false);
         mob.getNavigation().stop();
-        lastPathedTargetPos = Vec3.ZERO;
     }
 
     @Override
@@ -108,7 +104,7 @@ public class DroidMeleeAttackGoal extends Goal {
         mob.getLookControl().setLookAt(target, 30, 30);
 
         long now = mob.level().getGameTime();
-        if (now >= mob.getNextAttackTick() && mob.isWithinMeleeAttackRange(target) && mob.getSensing().hasLineOfSight(target)) {
+        if (now >= mob.getNextAttackTick() && target.invulnerableTime <= Physics.Constants.INVULNERABLE_TICKS && mob.isWithinMeleeAttackRange(target) && mob.getSensing().hasLineOfSight(target)) {
             mob.setNextAttackTick(now + getAttackCooldownTicks());
             mob.swing(InteractionHand.MAIN_HAND);
             if (mob.level() instanceof ServerLevel serverLevel) {
@@ -116,13 +112,11 @@ public class DroidMeleeAttackGoal extends Goal {
             }
         }
 
-        boolean drifted = target.position().distanceToSqr(lastPathedTargetPos) > REPATH_DISTANCE_SQ;
-        if (--ticksUntilNextPathRecalculation <= 0 || drifted) {
+        if (--ticksUntilNextPathRecalculation <= 0) {
             ticksUntilNextPathRecalculation = REPATH_DELAY_BASE + mob.getRandom().nextInt(REPATH_DELAY_RANDOM);
             if (!mob.isPassenger()) {
                 Vec3 predicted = findSafeIntercept(target);
                 mob.getNavigation().moveTo(predicted.x(), predicted.y(), predicted.z(), speedModifier);
-                lastPathedTargetPos = target.position();
             }
         }
     }
@@ -159,14 +153,28 @@ public class DroidMeleeAttackGoal extends Goal {
         BlockPos.MutableBlockPos lastSafe = target.blockPosition().mutable();
         Level level = mob.level();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int i = 1; i <= INTERCEPT_SCAN_STEPS; i++) {
-            double t = (double) i / INTERCEPT_SCAN_STEPS;
+        int steps = Math.max(1, (int) Math.ceil(diff.length()));
+
+        // default attributes to 0 when not present for target
+        AttributeInstance jumpAttr = target.getAttribute(Attributes.JUMP_STRENGTH);
+        AttributeInstance gravityAttr = target.getAttribute(Attributes.GRAVITY);
+        double jumpYSpeed = (jumpAttr != null ? jumpAttr.getValue() : 0) + target.getJumpBoostPower();
+        double gravity = gravityAttr != null ? gravityAttr.getValue() : 0;
+        int jumpHeight = Math.max(1, (int) Math.floor(Physics.getHeight(-gravity, jumpYSpeed)));
+        int prevX = 0;
+        int prevZ = 0;
+        for (int i = 1; i <= steps; i++) {
+            double t = (double) i / steps;
             BlockPos extrapolated = BlockPos.containing(targetPos.add(diff.scale(t)));
+            if (i != 1 && extrapolated.getX() == prevX && extrapolated.getZ() == prevZ) {
+                continue;
+            }
+            prevX = extrapolated.getX();
+            prevZ = extrapolated.getZ();
             if (!mob.level().getFluidState(extrapolated).isEmpty()) {
                 lastSafe.set(extrapolated);
             } else {
-                // TODO: +1 is for target jump height
-                int y = snapY(extrapolated.getX(), lastSafe.getY() + 1, extrapolated.getZ(), level, cursor);
+                int y = snapY(extrapolated.getX(), lastSafe.getY() + jumpHeight, extrapolated.getZ(), level, cursor);
                 lastSafe.set(extrapolated.getX(), y, extrapolated.getZ());
             }
         }

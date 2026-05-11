@@ -81,6 +81,8 @@ public final class Physics {
 
     public static final class Constants {
 
+        // invulnerable ticks after being hurt, mirrors LivingEntity.hurtServer
+        public static final int INVULNERABLE_TICKS = 10;
         // constant in LivingEntity.travelInFluid water branch.
         public static final float WATER_ACCEL = 0.02f;
         // horizontal friction multiplier when sprinting in water
