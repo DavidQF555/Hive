@@ -1,9 +1,14 @@
-package hive.common.world.entities.ai;
+package hive.common.world.entities.ai.movement;
 
 import hive.common.world.entities.DroidEntity;
+import hive.common.world.entities.ai.pathfinding.DroidNodeEvaluator;
+import hive.common.world.entities.ai.pathfinding.DroidPathfinder;
+import hive.common.world.entities.ai.pathfinding.ModedNode;
+import hive.common.world.entities.ai.pathfinding.MovementMode;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
@@ -11,32 +16,22 @@ import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.PathFinder;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 import net.minecraft.world.phys.Vec3;
-import org.jetbrains.annotations.Nullable;
 
 public class DroidPathNavigation extends GroundPathNavigation {
 
+    // half-width for the square the node evaluator scans around the start node for jump candidates
     public static final int JUMP_WIDTH = 5;
+    // same as JUMP_WIDTH but for jump candidates while in fluid
     public static final int FLUID_JUMP_WIDTH = 1;
+    // vertical distance the mob is allowed to jump out of fluid
+    // matches AmphibiousPathNavigation fluid traversal heuristic
     private static final double FLUID_JUMP_HEIGHT = 1.0 / 9;
-    private static final BlockPos.MutableBlockPos MUTABLE = new BlockPos.MutableBlockPos();
     private final DroidEntity mob;
 
     public DroidPathNavigation(DroidEntity entity, Level world) {
         super(entity, world);
         mob = entity;
         setCanFloat(true);
-    }
-
-    private boolean isJump(BlockGetter world, double step, @Nullable Node prev, Node next) {
-        if (prev == null) {
-            return false;
-        }
-        if (Math.abs(prev.x - next.x) >= 2 || Math.abs(prev.z - next.z) >= 2) {
-            return true;
-        }
-        double prevHeight = WalkNodeEvaluator.getFloorLevel(world, MUTABLE.set(prev.x, prev.y, prev.z));
-        double nextHeight = WalkNodeEvaluator.getFloorLevel(world, MUTABLE.set(next.x, next.y, next.z));
-        return nextHeight - prevHeight > step;
     }
 
     @Override
@@ -71,26 +66,45 @@ public class DroidPathNavigation extends GroundPathNavigation {
     @Override
     public void tick() {
         super.tick();
-        if (!isDone()) {
-            if (mob.getMoveControl() instanceof DroidMoveControl control && control.isStuck()) {
-                stop();
-                control.setStuck(false);
-            } else {
-                Node prev = path.getPreviousNode();
-                Node node = path.getNextNode();
-                if (isJump(mob.level(), mob.maxUpStep(), prev, node)) {
-                    if (mob.getMoveControl() instanceof DroidMoveControl control) {
-                        Vec3 target = this.path.getNextEntityPos(mob);
-                        control.jumpTowards(target.x(), getGroundY(target), target.z(), speedModifier);
-                    }
-                }
-            }
+        if (isDone() || !(mob.getMoveControl() instanceof DroidMoveControl control)) {
+            return;
         }
+        if (control.isStuck()) {
+            stop();
+            control.setStuck(false);
+            return;
+        }
+        Node node = path.getNextNode();
+        Vec3 target = getNodeTargetPos(node);
+        double tx = target.x();
+        double tz = target.z();
+        switch (ModedNode.modeOf(node)) {
+            case JUMP -> control.jumpTowards(tx, getGroundY(target), tz, speedModifier);
+            case SWIM -> control.swimTo(tx, getSwimY(Mth.floor(target.y())), tz, speedModifier);
+            case WALK -> control.walkTo(tx, getGroundY(target), tz, speedModifier);
+        }
+    }
+
+    protected double getSwimY(int y) {
+        return y + (1 - mob.getDimensions(MovementMode.SWIM.pose).height()) / 2;
+    }
+
+    protected Vec3 getNodeTargetPos(Node node) {
+        EntityDimensions dims = mob.getDimensions(ModedNode.modeOf(node).pose);
+        double offset = ((int) (dims.width() + 1)) / 2.0;
+        return new Vec3(node.x + offset, node.y, node.z + offset);
     }
 
     @Override
     protected boolean shouldTargetNextNodeInDirection(Vec3 start) {
-        return super.shouldTargetNextNodeInDirection(start) && !DroidPathfinder.isJump(path.getNextNode(), path.getNode(path.getNextNodeIndex() + 1));
+        return super.shouldTargetNextNodeInDirection(start)
+                && ModedNode.modeOf(path.getNode(path.getNextNodeIndex() + 1)) != MovementMode.JUMP;
+    }
+
+    // corner-cutting through fluid (mirrors AmphibiousPathNavigation)
+    @Override
+    protected boolean canMoveDirectly(Vec3 from, Vec3 to) {
+        return mob.isInLiquid() && isClearForMovementBetween(mob, from, to, false);
     }
 
 }

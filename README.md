@@ -4,10 +4,15 @@ A Minecraft mod that adds a hive mind.
 
 ### TODO
 
-- Falls without jumping
-- Positioning more accurately before jumps
+- Positioning more accurately before and after jumps
+    - Quadtree for pathfinding nodes
+    - Backup to build speed?
+    - Pause to reduce turning inertia?
 - Collective droid strategies
-- Droid swimming
-- Droid attack spacing
+    - Heuristic for determining player vs. mob strength to take fights?
+    - Director system for collective strategies?
+- Droid flying
+    - Fireworks?
+- Droid ranged attacks
 - Droid placing/breaking blocks
 - Boss or dungeon

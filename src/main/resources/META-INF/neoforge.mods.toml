@@ -14,7 +14,7 @@ description = 'Adds a hive mind.'
 [[dependencies.${ mod_id }]]
 modId = "neoforge"
 mandatory = true
-versionRange = "${neo_version_range}"
+versionRange = "[${neo_version},)"
 ordering = "NONE"
 side = "BOTH"
 [[dependencies.${ mod_id }]]
