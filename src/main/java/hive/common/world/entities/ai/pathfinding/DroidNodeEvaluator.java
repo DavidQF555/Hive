@@ -35,6 +35,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     private static final BlockPos.MutableBlockPos MUTABLE = new BlockPos.MutableBlockPos();
     private static final Node[] CACHE = new Node[Direction.Plane.HORIZONTAL.length()];
     private static final Node[][] SWIM_LEVEL_CACHE = new Node[3][Direction.Plane.HORIZONTAL.length()];
+    private final Long2ObjectMap<ModedNode> modedNodes = new Long2ObjectOpenHashMap<>();
     private final Object2BooleanMap<IntegerAABB> jumpCollisions = new Object2BooleanOpenHashMap<>();
     private final Long2ObjectMap<PathType> swimPathTypeCache = new Long2ObjectOpenHashMap<>();
     private final Long2BooleanMap submergedCache = new Long2BooleanOpenHashMap();
@@ -82,16 +83,17 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     @Override
     public void done() {
         super.done();
+        modedNodes.clear();
         jumpCollisions.clear();
         swimPathTypeCache.clear();
         submergedCache.clear();
     }
 
     protected PathType getCachedSwimPathType(int x, int y, int z) {
-        return swimPathTypeCache.computeIfAbsent(BlockPos.asLong(x, y, z), l -> getSwimPathTypeOfMob(currentContext, x, y, z, mob));
+        return swimPathTypeCache.computeIfAbsent(BlockPos.asLong(x, y, z), l -> getSwimPathTypeOfMob(currentContext, x, y, z));
     }
 
-    protected PathType getSwimPathTypeOfMob(PathfindingContext context, int x, int y, int z, Mob mob) {
+    protected PathType getSwimPathTypeOfMob(PathfindingContext context, int x, int y, int z) {
         Set<PathType> set = getPathTypeWithinSwimBB(context, x, y, z);
         PathType worst = PathType.BLOCKED;
         for (PathType type : set) {
@@ -136,7 +138,12 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     }
 
     protected ModedNode getNode(int x, int y, int z, MovementMode mode) {
-        return (ModedNode) nodes.computeIfAbsent(ModedNode.hash(x, y, z, mode), id -> new ModedNode(x, y, z, mode));
+        return modedNodes.computeIfAbsent(ModedNode.hash(x, y, z, mode), id -> new ModedNode(x, y, z, mode));
+    }
+
+    @Override
+    protected Node getNode(int x, int y, int z) {
+        return getNode(x, y, z, MovementMode.WALK);
     }
 
     protected ModedNode getBlockedNode(int x, int y, int z, MovementMode mode) {

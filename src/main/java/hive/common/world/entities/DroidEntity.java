@@ -68,8 +68,8 @@ public class DroidEntity extends Monster {
     public static AttributeSupplier.Builder createAttributes() {
         return createMobAttributes()
                 .add(Attributes.ATTACK_DAMAGE, 1)
-                .add(Attributes.ATTACK_SPEED, 4.0)
-                .add(Attributes.ENTITY_INTERACTION_RANGE, 3.0)
+                .add(Attributes.ATTACK_SPEED, 4)
+                .add(Attributes.ENTITY_INTERACTION_RANGE, 3)
                 .add(Attributes.MOVEMENT_SPEED, 0.1f)
                 .add(Attributes.FOLLOW_RANGE, 64);
     }
@@ -84,7 +84,7 @@ public class DroidEntity extends Monster {
 
     @Override
     protected float getKnockback(Entity target, DamageSource source) {
-        return super.getKnockback(target, source) + (isSprinting() ? 1.0F : 0.0F);
+        return super.getKnockback(target, source) + (isSprinting() ? 1 : 0);
     }
 
     @Override
@@ -105,11 +105,11 @@ public class DroidEntity extends Monster {
         boolean hurt = target.hurtServer(level, source, damage);
         if (hurt) {
             float kb = getKnockback(target, source);
-            if (kb > 0.0F && target instanceof LivingEntity living) {
-                // mirrors vanilla Mob.doHurtTarget: half the knockback impulse is applied to the target,
+            if (kb > 0 && target instanceof LivingEntity living) {
+                // mirrors vanilla Mob.doHurtTarget, half the knockback impulse is applied to the target,
                 // and the attacker's own xz momentum is dampened to 0.6 to brace against the hit
                 living.knockback(kb * KNOCKBACK_TARGET_SCALE, getX() - target.getX(), getZ() - target.getZ());
-                setDeltaMovement(getDeltaMovement().multiply(KNOCKBACK_SELF_DAMP, 1.0, KNOCKBACK_SELF_DAMP));
+                setDeltaMovement(getDeltaMovement().multiply(KNOCKBACK_SELF_DAMP, 1, KNOCKBACK_SELF_DAMP));
             }
             if (target instanceof LivingEntity living) {
                 weapon.hurtEnemy(living, this);
