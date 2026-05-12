@@ -36,6 +36,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     private static final BlockPos.MutableBlockPos MUTABLE = new BlockPos.MutableBlockPos();
     private static final Node[] CACHE = new Node[Direction.Plane.HORIZONTAL.stream().toList().size()];
     private static final Node[][] SWIM_LEVEL_CACHE = new Node[3][Direction.Plane.HORIZONTAL.stream().toList().size()];
+    private final Long2ObjectMap<ModedNode> modedNodes = new Long2ObjectOpenHashMap<>();
     private final Object2BooleanMap<IntegerAABB> jumpCollisions = new Object2BooleanOpenHashMap<>();
     private final Long2ObjectMap<BlockPathTypes> swimPathTypeCache = new Long2ObjectOpenHashMap<>();
     private final Long2BooleanMap submergedCache = new Long2BooleanOpenHashMap();
@@ -83,6 +84,7 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     @Override
     public void done() {
         super.done();
+        modedNodes.clear();
         jumpCollisions.clear();
         swimPathTypeCache.clear();
         submergedCache.clear();
@@ -137,7 +139,12 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     }
 
     protected ModedNode getNode(int x, int y, int z, MovementMode mode) {
-        return (ModedNode) nodes.computeIfAbsent(ModedNode.hash(x, y, z, mode), id -> new ModedNode(x, y, z, mode));
+        return modedNodes.computeIfAbsent(ModedNode.hash(x, y, z, mode), id -> new ModedNode(x, y, z, mode));
+    }
+
+    @Override
+    protected Node getNode(int x, int y, int z) {
+        return getNode(x, y, z, MovementMode.WALK);
     }
 
     protected ModedNode getBlockedNode(int x, int y, int z, MovementMode mode) {

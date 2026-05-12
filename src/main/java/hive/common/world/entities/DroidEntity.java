@@ -71,8 +71,8 @@ public class DroidEntity extends Monster {
     public static AttributeSupplier.Builder createAttributes() {
         return createMobAttributes()
                 .add(Attributes.ATTACK_DAMAGE, 1)
-                .add(Attributes.ATTACK_SPEED, 4.0)
-                .add(ForgeMod.ENTITY_REACH.get(), 3.0)
+                .add(Attributes.ATTACK_SPEED, 4)
+                .add(ForgeMod.ENTITY_REACH.get(), 3)
                 .add(Attributes.MOVEMENT_SPEED, 0.1f)
                 .add(Attributes.FOLLOW_RANGE, 64);
     }
@@ -107,11 +107,11 @@ public class DroidEntity extends Monster {
         }
         boolean hurt = target.hurt(this.damageSources().mobAttack(this), damage);
         if (hurt) {
-            if (kb > 0.0F && target instanceof LivingEntity living) {
+            if (kb > 0 && target instanceof LivingEntity living) {
                 // mirrors vanilla Mob.doHurtTarget: half the knockback impulse is applied to the target,
                 // and the attacker's own xz momentum is dampened to 0.6 to brace against the hit
                 living.knockback(kb * KNOCKBACK_TARGET_SCALE, getX() - target.getX(), getZ() - target.getZ());
-                setDeltaMovement(getDeltaMovement().multiply(KNOCKBACK_SELF_DAMP, 1.0, KNOCKBACK_SELF_DAMP));
+                setDeltaMovement(getDeltaMovement().multiply(KNOCKBACK_SELF_DAMP, 1, KNOCKBACK_SELF_DAMP));
             }
             doEnchantDamageEffects(this, target);
             setLastHurtMob(target);
