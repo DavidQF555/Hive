@@ -1,7 +1,8 @@
 package hive.common.world.entities.ai;
 
 import hive.common.world.Physics;
-import hive.common.world.entities.DroidEntity;
+import hive.common.world.entities.ai.movement.DroidPathNavigation;
+import hive.common.world.entities.ai.pathfinding.DroidNodeEvaluator;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -40,7 +41,7 @@ public class DroidPathfinder extends PathFinder {
         gravity = -mob.getAttributeValue(ForgeMod.ENTITY_GRAVITY.get());
         xzSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor;
         if (assumeSprinting || mob.isSprinting()) {
-            xzSpeed += DroidEntity.JUMP_BOOST;
+            xzSpeed += Physics.Constants.JUMP_BOOST;
         }
         return super.findPath(region, mob, targets, maxDist, reachedDist, nodeFactor);
     }

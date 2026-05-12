@@ -1,5 +1,7 @@
 package hive.client.render;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import hive.common.Hive;
 import hive.common.world.entities.DroidEntity;
 import net.minecraft.client.model.HumanoidArmorModel;
@@ -11,6 +13,7 @@ import net.minecraft.client.renderer.entity.layers.CustomHeadLayer;
 import net.minecraft.client.renderer.entity.layers.ElytraLayer;
 import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 
 public class DroidRenderer extends HumanoidMobRenderer<DroidEntity, HumanoidModel<DroidEntity>> {
 
@@ -33,6 +36,19 @@ public class DroidRenderer extends HumanoidMobRenderer<DroidEntity, HumanoidMode
     @Override
     public ResourceLocation getTextureLocation(DroidEntity entity) {
         return TEXTURE;
+    }
+
+    @Override
+    protected void setupRotations(DroidEntity entity, PoseStack pose, float pAgeInTicks, float pRotationYaw, float pPartialTicks) {
+        super.setupRotations(entity, pose, pAgeInTicks, pRotationYaw, pPartialTicks);
+        float swimAmount = entity.getSwimAmount(pPartialTicks);
+        if (swimAmount > 0) {
+            float tilt = Mth.lerp(swimAmount, 0, -90 - entity.getXRot());
+            pose.mulPose(Axis.XP.rotationDegrees(tilt));
+            if (entity.isVisuallySwimming()) {
+                pose.translate(0, -1f, 0.3f);
+            }
+        }
     }
 
 }

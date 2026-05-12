@@ -14,21 +14,24 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public record DebugPathEffectPacket(List<BlockPos> pos) {
+public record DebugPathEffectPacket(List<BlockPos> pos, byte[] modes) {
 
     private static final BiConsumer<DebugPathEffectPacket, FriendlyByteBuf> ENCODER = (message, buffer) -> {
         buffer.writeInt(message.pos().size());
-        for (BlockPos pos : message.pos()) {
-            buffer.writeBlockPos(pos);
+        for (int i = 0; i < message.pos().size(); i++) {
+            buffer.writeBlockPos(message.pos().get(i));
+            buffer.writeByte(message.modes()[i]);
         }
     };
     private static final Function<FriendlyByteBuf, DebugPathEffectPacket> DECODER = buffer -> {
         List<BlockPos> pos = new ArrayList<>();
         int size = buffer.readInt();
+        byte[] modes = new byte[size];
         for (int i = 0; i < size; i++) {
             pos.add(buffer.readBlockPos());
+            modes[i] = buffer.readByte();
         }
-        return new DebugPathEffectPacket(pos);
+        return new DebugPathEffectPacket(pos, modes);
     };
     private static final BiConsumer<DebugPathEffectPacket, Supplier<NetworkEvent.Context>> CONSUMER = (message, context) -> {
         NetworkEvent.Context cont = context.get();
@@ -41,7 +44,7 @@ public record DebugPathEffectPacket(List<BlockPos> pos) {
     }
 
     public static void handle(DebugPathEffectPacket packet) {
-        ClientHelper.renderPath(packet.pos());
+        ClientHelper.renderPath(packet.pos(), packet.modes());
     }
 
 }
