@@ -51,7 +51,7 @@ public class DroidMoveControl extends MoveControl {
         }
         if (operation == DroidOperation.START_JUMP) {
             if (mob.onGround()) {
-                if (isInFluid()) {
+                if (mob.isInFluidType()) {
                     setOperation(DroidOperation.WADE);
                 } else {
                     Optional<Double> t = getJumpLandingTime();
@@ -84,7 +84,7 @@ public class DroidMoveControl extends MoveControl {
             }
         }
         if (this.operation == DroidOperation.IN_AIR) {
-            if (isInFluid()) {
+            if (mob.isInFluidType()) {
                 setOperation(DroidOperation.WADE);
             } else if (mob.onGround()) {
                 setOperation(DroidOperation.WAIT);
@@ -102,7 +102,7 @@ public class DroidMoveControl extends MoveControl {
         }
         double speed = Math.min(len, max);
         if (operation == DroidOperation.WADE) {
-            if (!isInFluid()) {
+            if (!mob.isInFluidType()) {
                 if (mob.onGround()) {
                     setOperation(DroidOperation.MOVE_TO);
                 } else {
@@ -110,7 +110,7 @@ public class DroidMoveControl extends MoveControl {
                 }
             } else {
                 setPose(Pose.STANDING);
-                FluidType fluid = mob.level().getFluidState(mob.blockPosition()).getFluidType();
+                FluidType fluid = mob.getMaxHeightFluidType();
                 if (mob.isUnderWater()) {
                     jumpFluid = false;
                 }
@@ -142,7 +142,7 @@ public class DroidMoveControl extends MoveControl {
             }
         }
         if (this.operation == DroidOperation.MOVE_TO) {
-            if (isInFluid()) {
+            if (mob.isInFluidType()) {
                 setOperation(DroidOperation.WADE);
             } else if (!mob.onGround()) {
                 setOperation(DroidOperation.IN_AIR);
@@ -208,6 +208,22 @@ public class DroidMoveControl extends MoveControl {
         }
         // real players can't sprint sideways or backward
         // TODO: Would be more realistic to disable sprinting when forward impulse isn't big enough instead of bounding sideways and backwards impulse
+        double scale = getScale(zza, xxa);
+        zza *= scale;
+        xxa *= scale;
+        if (Math.abs(zza) < ERROR || !Double.isFinite(zza)) {
+            mob.setZza(0);
+        } else {
+            mob.setZza((float) zza);
+        }
+        if (Math.abs(xxa) < ERROR || !Double.isFinite(xxa)) {
+            mob.setXxa(0);
+        } else {
+            mob.setXxa((float) xxa);
+        }
+    }
+
+    private double getScale(double zza, double xxa) {
         double zzaMin = -1;
         double xxaCap = 1;
         if (mob.isSprinting()) {
@@ -215,16 +231,18 @@ public class DroidMoveControl extends MoveControl {
             zzaMin = -cap;
             xxaCap = cap;
         }
-        if (Math.abs(zza) < ERROR || !Double.isFinite(zza)) {
-            mob.setZza(0);
-        } else {
-            mob.setZza((float) Mth.clamp(zza, zzaMin, 1));
+        double scale = 1;
+        if (zza > 1) {
+            scale = Math.min(scale, 1 / zza);
+        } else if (zza < zzaMin) {
+            scale = Math.min(scale, zzaMin / zza);
         }
-        if (Math.abs(xxa) < ERROR || !Double.isFinite(xxa)) {
-            mob.setXxa(0);
-        } else {
-            mob.setXxa((float) Mth.clamp(xxa, -xxaCap, xxaCap));
+        if (xxa > xxaCap) {
+            scale = Math.min(scale, xxaCap / xxa);
+        } else if (xxa < -xxaCap) {
+            scale = Math.min(scale, -xxaCap / xxa);
         }
+        return scale;
     }
 
     public boolean isStuck() {
@@ -248,10 +266,6 @@ public class DroidMoveControl extends MoveControl {
 
     protected void setOperation(DroidOperation operation) {
         this.operation = operation;
-    }
-
-    protected boolean isInFluid() {
-        return mob.isInSwimmableFluid() && (!canJumpFluid() || mob.isUnderWater());
     }
 
     protected boolean canJump(double tX, double tZ) {
@@ -284,10 +298,6 @@ public class DroidMoveControl extends MoveControl {
 
     private Optional<Double> getJumpLandingTime() {
         return Physics.getLandingTime(-mob.getEffectiveGravity(), wantedY - mob.getY(), mob.getAttributeValue(Attributes.JUMP_STRENGTH) + mob.getJumpBoostPower());
-    }
-
-    protected boolean canJumpFluid() {
-        return mob.level().getFluidState(mob.blockPosition()).getHeight(mob.level(), mob.blockPosition()) <= mob.getFluidJumpThreshold();
     }
 
     @Override
