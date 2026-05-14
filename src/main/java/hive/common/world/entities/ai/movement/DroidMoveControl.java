@@ -26,7 +26,7 @@ public class DroidMoveControl extends MoveControl {
     private static final float WADE_JUMP_CHANCE = 0.8f;
     private final DroidEntity mob;
     private DroidOperation operation = DroidOperation.WAIT;
-    private boolean stuck, jumpFluid;
+    private boolean stuck;
 
     public DroidMoveControl(DroidEntity mob) {
         super(mob);
@@ -112,22 +112,15 @@ public class DroidMoveControl extends MoveControl {
             } else {
                 setPose(Pose.STANDING);
                 FluidType fluid = mob.getMaxHeightFluidType();
-                if (mob.isUnderWater()) {
-                    jumpFluid = false;
-                }
                 if (dY < 0) {
                     mob.sinkInFluid(fluid);
-                    jumpFluid = false;
-                } else if (jumpFluid) {
-                    if (mob.level().getRandom().nextFloat() < WADE_JUMP_CHANCE) {
-                        mob.getJumpControl().jump();
-                    }
                 } else if (mob.isUnderWater()) {
                     if (dY > 0) {
                         mob.getJumpControl().jump();
                     }
-                } else if (mob.getFluidTypeHeight(fluid) > mob.getFluidJumpThreshold()) {
-                    jumpFluid = true;
+                } else if (mob.getFluidTypeHeight(fluid) > mob.getFluidJumpThreshold()
+                        && mob.level().getRandom().nextFloat() < WADE_JUMP_CHANCE) {
+                    mob.getJumpControl().jump();
                 }
                 double friction = Physics.getFluidFriction(
                         false,
