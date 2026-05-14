@@ -44,6 +44,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.world.level.pathfinder.PathType;
+import net.neoforged.neoforge.common.NeoForgeMod;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
@@ -63,6 +65,8 @@ public class DroidEntity extends Monster {
         super(type, world);
         moveControl = new DroidMoveControl(this);
         setCanPickUpLoot(true);
+        setPathfindingMalus(PathType.WATER, 0);
+        setPathfindingMalus(PathType.WATER_BORDER, 0);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -71,7 +75,8 @@ public class DroidEntity extends Monster {
                 .add(Attributes.ATTACK_SPEED, 4)
                 .add(Attributes.ENTITY_INTERACTION_RANGE, 3)
                 .add(Attributes.MOVEMENT_SPEED, 0.1f)
-                .add(Attributes.FOLLOW_RANGE, 64);
+                .add(Attributes.FOLLOW_RANGE, 64)
+                .add(NeoForgeMod.SWIM_SPEED, 1);
     }
 
     public long getNextAttackTick() {
@@ -146,7 +151,7 @@ public class DroidEntity extends Monster {
     }
 
     @Override
-    protected float getFlyingSpeed() {
+    public float getFlyingSpeed() {
         return getSpeed() * Physics.Constants.FLY_MULTIPLIER;
     }
 
