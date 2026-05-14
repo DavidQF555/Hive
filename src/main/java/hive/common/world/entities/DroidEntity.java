@@ -43,6 +43,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraftforge.common.ForgeMod;
@@ -66,6 +67,8 @@ public class DroidEntity extends Monster {
         super(type, world);
         moveControl = new DroidMoveControl(this);
         setCanPickUpLoot(true);
+        setPathfindingMalus(BlockPathTypes.WATER, 0);
+        setPathfindingMalus(BlockPathTypes.WATER_BORDER, 0);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -74,7 +77,8 @@ public class DroidEntity extends Monster {
                 .add(Attributes.ATTACK_SPEED, 4)
                 .add(ForgeMod.ENTITY_REACH.get(), 3)
                 .add(Attributes.MOVEMENT_SPEED, 0.1f)
-                .add(Attributes.FOLLOW_RANGE, 64);
+                .add(Attributes.FOLLOW_RANGE, 64)
+                .add(ForgeMod.SWIM_SPEED.get(), 1);
     }
 
     public long getNextAttackTick() {
@@ -144,7 +148,7 @@ public class DroidEntity extends Monster {
     }
 
     @Override
-    protected float getFlyingSpeed() {
+    public float getFlyingSpeed() {
         return getSpeed() * Physics.Constants.FLY_MULTIPLIER;
     }
 

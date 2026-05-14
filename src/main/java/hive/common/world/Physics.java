@@ -72,11 +72,36 @@ public final class Physics {
         return slow;
     }
 
-    public static double getFluidTerminalSpeed(double friction) {
-        if (friction <= 0 || friction >= 1) {
+    // mirrors LivingEntity.travelInFluid
+    public static double getSwimSpeedMultiplier(double speed, double waterEfficiency, boolean onGround) {
+        double accel = Constants.WATER_ACCEL;
+        double eff = onGround ? waterEfficiency : waterEfficiency * 0.5;
+        if (eff > 0) {
+            accel += (speed - accel) * eff;
+        }
+        return accel;
+    }
+
+    public static double getTerminalGroundSpeed(double speed, double blockFriction) {
+        return speed * getTerminalGroundSpeedMultiplier(blockFriction);
+    }
+
+    private static double getTerminalGroundSpeedMultiplier(double blockFriction) {
+        // both air and ground friction applied (LivingEntity.travelInAir)
+        double friction = blockFriction * Constants.AIR_FRICTION;
+        if (blockFriction <= 0 || friction == 1) {
             return 0;
         }
-        return Constants.WATER_ACCEL * friction / (1 - friction);
+        // calculated in LivingEntity.getFrictionInfluencedSpeed
+        double accel = Constants.GROUND_ACCEL_K / (blockFriction * blockFriction * blockFriction);
+        return getTerminalSpeed(accel, friction);
+    }
+
+    public static double getTerminalSpeed(double speed, double friction) {
+        if (speed <= 0 || friction <= 0 || friction >= 1) {
+            return 0;
+        }
+        return speed * friction / (1 - friction);
     }
 
     public static final class Constants {
@@ -107,12 +132,9 @@ public final class Physics {
         // airborne speed scaler used in place of vanilla's flat getFlyingSpeed
         // player returns 0.02 walking, 0.026 sprinting, multiplying MOVEMENT_SPEED by this scaler reproduces those player numbers automatically
         public static final float FLY_MULTIPLIER = 0.2f;
-        // both ground and air friction applied
-        public static final float GROUND_FRICTION = DEFAULT_BLOCK_FRICTION * AIR_FRICTION;
-        public static final float GROUND_ACCEL_PER_MOVE_SPEED = GROUND_ACCEL_K / (DEFAULT_BLOCK_FRICTION * DEFAULT_BLOCK_FRICTION * DEFAULT_BLOCK_FRICTION);
 
         // derived ground terminal speed multiplier (per unit of MOVEMENT_SPEED)
-        public static final float GROUND_WALK_SPEED_MULTIPLIER = GROUND_ACCEL_PER_MOVE_SPEED * GROUND_FRICTION / (1 - GROUND_FRICTION);
+        public static final float GROUND_WALK_SPEED_MULTIPLIER = (float) getTerminalGroundSpeedMultiplier(DEFAULT_BLOCK_FRICTION);
 
         private Constants() {
         }

@@ -53,11 +53,12 @@ public class DroidPathfinder extends PathFinder {
         gravity = -mob.getAttributeValue(ForgeMod.ENTITY_GRAVITY.get());
         boolean dolphinsGrace = mob.hasEffect(MobEffects.DOLPHINS_GRACE);
         double waterEfficiency = Math.min(1, EnchantmentHelper.getDepthStrider(mob) / 3.0);
-        wadeSpeed = (float) Physics.getFluidTerminalSpeed(
-                Physics.getFluidFriction(false, mob.getWaterSlowDown(), dolphinsGrace, waterEfficiency, true));
-        swimSpeed = (float) Physics.getFluidTerminalSpeed(
-                Physics.getFluidFriction(true, mob.getWaterSlowDown(), dolphinsGrace, waterEfficiency, false));
-        groundWalkSpeed = (float) (mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor * Physics.Constants.GROUND_WALK_SPEED_MULTIPLIER);
+        double swimAttr = mob.getAttributeValue(ForgeMod.SWIM_SPEED.get());
+        double max = mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor;
+        double fluidAccel = Physics.getSwimSpeedMultiplier(max, waterEfficiency, false) * swimAttr;
+        wadeSpeed = (float) Physics.getTerminalSpeed(fluidAccel, Physics.getFluidFriction(false, mob.getWaterSlowDown(), dolphinsGrace, waterEfficiency, false));
+        swimSpeed = (float) Physics.getTerminalSpeed(fluidAccel, Physics.getFluidFriction(true, mob.getWaterSlowDown(), dolphinsGrace, waterEfficiency, false));
+        groundWalkSpeed = (float) (max * Physics.Constants.GROUND_WALK_SPEED_MULTIPLIER);
         if (assumeSprinting || mob.isSprinting()) {
             groundWalkSpeed *= Physics.Constants.SPRINT_MULTIPLIER;
         }
