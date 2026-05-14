@@ -43,6 +43,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.world.level.pathfinder.PathType;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
@@ -63,6 +64,8 @@ public class DroidEntity extends Monster {
         super(type, world);
         moveControl = new DroidMoveControl(this);
         setCanPickUpLoot(true);
+        setPathfindingMalus(PathType.WATER, 0);
+        setPathfindingMalus(PathType.WATER_BORDER, 0);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
