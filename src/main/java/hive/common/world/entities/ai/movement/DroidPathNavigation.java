@@ -6,6 +6,7 @@ import hive.common.world.entities.ai.pathfinding.DroidPathfinder;
 import hive.common.world.entities.ai.pathfinding.ModedNode;
 import hive.common.world.entities.ai.pathfinding.MovementMode;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Vec3i;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
@@ -99,6 +100,22 @@ public class DroidPathNavigation extends GroundPathNavigation {
     protected boolean shouldTargetNextNodeInDirection(Vec3 start) {
         return super.shouldTargetNextNodeInDirection(start)
                 && ModedNode.modeOf(path.getNode(path.getNextNodeIndex() + 1)) != MovementMode.JUMP;
+    }
+
+    @Override
+    protected void followThePath() {
+        Vec3 pos = getTempMobPos();
+        maxDistanceToWaypoint = mob.getBbWidth() > 0.75f ? mob.getBbWidth() / 2 : 0.75f - mob.getBbWidth() / 2;
+        Vec3i next = path.getNextNodePos();
+        double offset = ((int) (mob.getBbWidth() + 1)) / 2.0;
+        double dX = Math.abs(mob.getX() - (next.getX() + offset));
+        double dY = Math.abs(mob.getY() - (double) next.getY());
+        double dZ = Math.abs(mob.getZ() - (next.getZ() + offset));
+        boolean reached = dX <= maxDistanceToWaypoint && dZ <= maxDistanceToWaypoint && dY < 1;
+        if (reached || canCutCorner(path.getNextNode().type) && shouldTargetNextNodeInDirection(pos)) {
+            path.advance();
+        }
+        doStuckDetection(pos);
     }
 
     // corner-cutting through fluid (mirrors AmphibiousPathNavigation)
