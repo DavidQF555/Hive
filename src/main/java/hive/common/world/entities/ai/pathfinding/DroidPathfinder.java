@@ -15,6 +15,7 @@ import net.minecraft.world.level.pathfinder.PathFinder;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.NeoForgeMod;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -51,11 +52,12 @@ public class DroidPathfinder extends PathFinder {
         gravity = -mob.getAttributeValue(Attributes.GRAVITY);
         boolean dolphinsGrace = mob.hasEffect(MobEffects.DOLPHINS_GRACE);
         double waterEfficiency = mob.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY);
-        wadeSpeed = (float) Physics.getFluidTerminalSpeed(
-                Physics.getFluidFriction(false, mob.getWaterSlowDown(), dolphinsGrace, waterEfficiency, true));
-        swimSpeed = (float) Physics.getFluidTerminalSpeed(
-                Physics.getFluidFriction(true, mob.getWaterSlowDown(), dolphinsGrace, waterEfficiency, false));
-        groundWalkSpeed = (float) (mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor * Physics.Constants.GROUND_WALK_SPEED_MULTIPLIER);
+        double swimAttr = mob.getAttributeValue(NeoForgeMod.SWIM_SPEED);
+        double max = mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * speedFactor;
+        double fluidAccel = Physics.getSwimSpeedMultiplier(max, waterEfficiency, false) * swimAttr;
+        wadeSpeed = (float) Physics.getTerminalSpeed(fluidAccel, Physics.getFluidFriction(false, mob.getWaterSlowDown(), dolphinsGrace, waterEfficiency, false));
+        swimSpeed = (float) Physics.getTerminalSpeed(fluidAccel, Physics.getFluidFriction(true, mob.getWaterSlowDown(), dolphinsGrace, waterEfficiency, false));
+        groundWalkSpeed = (float) (max * Physics.Constants.GROUND_WALK_SPEED_MULTIPLIER);
         if (assumeSprinting || mob.isSprinting()) {
             groundWalkSpeed *= Physics.Constants.SPRINT_MULTIPLIER;
         }

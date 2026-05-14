@@ -9,6 +9,7 @@ import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.NeoForgeMod;
 import net.neoforged.neoforge.fluids.FluidType;
 
 import java.util.Optional;
@@ -128,17 +129,17 @@ public class DroidMoveControl extends MoveControl {
                 } else if (mob.getFluidTypeHeight(fluid) > mob.getFluidJumpThreshold()) {
                     jumpFluid = true;
                 }
-                double slow = Physics.getFluidFriction(
+                double friction = Physics.getFluidFriction(
                         false,
                         mob.getWaterSlowDown(),
                         mob.hasEffect(MobEffects.DOLPHINS_GRACE),
                         mob.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY),
                         mob.onGround()
                 );
-                double tX = dX * speed / len / slow;
-                double tZ = dZ * speed / len / slow;
+                double tX = dX * speed / len / friction;
+                double tZ = dZ * speed / len / friction;
                 mob.setYRot(rot);
-                setDeltaMovement(tX, tZ, max, slow);
+                setDeltaMovement(tX, tZ, max, friction);
             }
         }
         if (this.operation == DroidOperation.MOVE_TO) {
@@ -149,13 +150,13 @@ public class DroidMoveControl extends MoveControl {
             } else {
                 setPose(Pose.STANDING);
                 BlockPos below = mob.getBlockPosBelowThatAffectsMyMovement();
-                float friction = mob.level().getBlockState(below).getFriction(mob.level(), below, mob) * Physics.Constants.AIR_FRICTION;
-                double terminal = max * Physics.Constants.GROUND_WALK_SPEED_MULTIPLIER;
+                float blockFriction = mob.level().getBlockState(below).getFriction(mob.level(), below, mob);
+                double terminal = Physics.getTerminalGroundSpeed(max, blockFriction);
                 double targetSpeed = Math.min(len, terminal);
                 double tX = dX * targetSpeed / len;
                 double tZ = dZ * targetSpeed / len;
                 mob.setYRot(rot);
-                setDeltaMovement(tX, tZ, max, friction);
+                setDeltaMovement(tX, tZ, max, blockFriction * Physics.Constants.AIR_FRICTION);
             }
         }
         if (operation == DroidOperation.SWIMMING) {
@@ -172,10 +173,21 @@ public class DroidMoveControl extends MoveControl {
                 } else if (slope < -SWIM_SLOPE_THRESHOLD) {
                     mob.sinkInFluid(fluid);
                 }
+                double waterEff = mob.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY);
+                double friction = Physics.getFluidFriction(
+                        true,
+                        mob.getWaterSlowDown(),
+                        mob.hasEffect(MobEffects.DOLPHINS_GRACE),
+                        waterEff,
+                        mob.onGround()
+                );
+                double swimSpeed = Physics.getSwimSpeedMultiplier(max, waterEff, mob.onGround()) * mob.getAttributeValue(NeoForgeMod.SWIM_SPEED);
+                double terminal = Physics.getTerminalSpeed(swimSpeed, friction);
+                double targetSpeed = Math.min(len, terminal);
+                double tX = len < ERROR ? 0 : dX * targetSpeed / len;
+                double tZ = len < ERROR ? 0 : dZ * targetSpeed / len;
                 mob.setYRot(rot);
-                mob.setSpeed((float) max);
-                mob.setZza(1);
-                mob.setXxa(0);
+                setDeltaMovement(tX, tZ, max, friction, swimSpeed);
             }
         }
     }
@@ -187,13 +199,21 @@ public class DroidMoveControl extends MoveControl {
     }
 
     private void setDeltaMovement(double cX, double cZ, double speed, double friction) {
+        double impulseScale = speed;
+        if (!mob.onGround()) {
+            impulseScale *= Physics.Constants.FLY_MULTIPLIER;
+        }
+        setDeltaMovement(cX, cZ, speed, friction, impulseScale);
+    }
+
+    private void setDeltaMovement(double cX, double cZ, double speed, double friction, double impulseScale) {
         mob.setSpeed((float) speed);
         double rot = mob.getYRot() * Math.PI / 180;
         double dX = -Math.sin(rot);
         double dZ = Math.cos(rot);
         Vec3 delta = mob.getDeltaMovement();
-        double changeDX = (cX / friction - delta.x()) / speed;
-        double changeDZ = (cZ / friction - delta.z()) / speed;
+        double changeDX = (cX / friction - delta.x()) / impulseScale;
+        double changeDZ = (cZ / friction - delta.z()) / impulseScale;
         double zza = changeDX * dX + changeDZ * dZ;
         double sX = changeDX - zza * dX;
         double sZ = changeDZ - zza * dZ;
@@ -201,10 +221,6 @@ public class DroidMoveControl extends MoveControl {
         double side = -changeDX * sZ + changeDZ * sX;
         if (side < 0) {
             xxa *= -1;
-        }
-        if (!mob.onGround()) {
-            zza /= Physics.Constants.FLY_MULTIPLIER;
-            xxa /= Physics.Constants.FLY_MULTIPLIER;
         }
         // real players can't sprint sideways or backward
         // TODO: Would be more realistic to disable sprinting when forward impulse isn't big enough instead of bounding sideways and backwards impulse
