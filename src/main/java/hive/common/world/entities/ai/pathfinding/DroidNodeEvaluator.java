@@ -134,6 +134,9 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
         int x = pos.getX();
         int y = pos.getY();
         int z = pos.getZ();
+        if (mode == MovementMode.WALK && mob.onGround()) {
+            y = Mth.floor(mob.getY() + 0.5);
+        }
 
         // mirrors WalkNodeEvaluator.getStart fallback to the four hitbox box corners
         if (!canStartAt(x, y, z, mode)) {
