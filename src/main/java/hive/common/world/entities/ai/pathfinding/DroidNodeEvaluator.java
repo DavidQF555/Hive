@@ -20,6 +20,7 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
+import net.minecraft.world.phys.AABB;
 import net.minecraftforge.common.ForgeMod;
 import org.jetbrains.annotations.Nullable;
 
@@ -130,12 +131,42 @@ public class DroidNodeEvaluator extends WalkNodeEvaluator {
     public ModedNode getStart() {
         BlockPos pos = mob.blockPosition();
         MovementMode mode = getStartMode(pos);
-        ModedNode node = getNode(pos.getX(), pos.getY(), pos.getZ(), mode);
+        int x = pos.getX();
+        int y = pos.getY();
+        int z = pos.getZ();
+
+        // mirrors WalkNodeEvaluator.getStart fallback to the four hitbox box corners
+        if (!canStartAt(x, y, z, mode)) {
+            AABB box = mob.getBoundingBox();
+            int minX = Mth.floor(box.minX);
+            int maxX = Mth.floor(box.maxX);
+            int minZ = Mth.floor(box.minZ);
+            int maxZ = Mth.floor(box.maxZ);
+            if (canStartAt(minX, y, minZ, mode)) {
+                x = minX;
+                z = minZ;
+            } else if (canStartAt(minX, y, maxZ, mode)) {
+                x = minX;
+                z = maxZ;
+            } else if (canStartAt(maxX, y, minZ, mode)) {
+                x = maxX;
+                z = minZ;
+            } else if (canStartAt(maxX, y, maxZ, mode)) {
+                x = maxX;
+                z = maxZ;
+            }
+        }
+        ModedNode node = getNode(x, y, z, mode);
         node.type = mode == MovementMode.SWIM
                 ? getCachedSwimPathType(node.x, node.y, node.z)
                 : getCachedBlockType(mob, node.x, node.y, node.z);
         node.costMalus = mob.getPathfindingMalus(node.type);
         return node;
+    }
+
+    protected boolean canStartAt(int x, int y, int z, MovementMode mode) {
+        BlockPathTypes type = mode == MovementMode.SWIM ? getCachedSwimPathType(x, y, z) : getCachedBlockType(mob, x, y, z);
+        return type != BlockPathTypes.OPEN && mob.getPathfindingMalus(type) >= 0;
     }
 
     protected ModedNode getNode(int x, int y, int z, MovementMode mode) {
