@@ -206,15 +206,24 @@ public class DroidMoveControl extends MoveControl {
             zza /= Physics.Constants.FLY_MULTIPLIER;
             xxa /= Physics.Constants.FLY_MULTIPLIER;
         }
+        // real players can't sprint sideways or backward
+        // TODO: Would be more realistic to disable sprinting when forward impulse isn't big enough instead of bounding sideways and backwards impulse
+        double zzaMin = -1;
+        double xxaCap = 1;
+        if (mob.isSprinting()) {
+            double cap = 1 / Physics.Constants.SPRINT_MULTIPLIER;
+            zzaMin = -cap;
+            xxaCap = cap;
+        }
         if (Math.abs(zza) < ERROR || !Double.isFinite(zza)) {
             mob.setZza(0);
         } else {
-            mob.setZza((float) Mth.clamp(zza, -1, 1));
+            mob.setZza((float) Mth.clamp(zza, zzaMin, 1));
         }
         if (Math.abs(xxa) < ERROR || !Double.isFinite(xxa)) {
             mob.setXxa(0);
         } else {
-            mob.setXxa((float) Mth.clamp(xxa, -1, 1));
+            mob.setXxa((float) Mth.clamp(xxa, -xxaCap, xxaCap));
         }
     }
 
