@@ -7,7 +7,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
-@EventBusSubscriber(modid = Hive.ID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = Hive.ID)
 public final class PacketRegistry {
 
     public static final CustomPacketPayload.Type<DebugPathEffectPacket> DEBUG_PATH = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Hive.ID, "debug_path"));

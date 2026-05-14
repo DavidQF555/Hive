@@ -249,8 +249,4 @@ public class DroidEntity extends Monster {
         return (DroidPathNavigation) super.getNavigation();
     }
 
-    public boolean isInSwimmableFluid() {
-        return isInFluidType((fluidType, height) -> canSwimInFluidType(fluidType));
-    }
-
 }

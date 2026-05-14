@@ -17,7 +17,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 import java.util.function.UnaryOperator;
 
-@EventBusSubscriber(modid = Hive.ID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = Hive.ID)
 public final class EntityTypeRegistry {
 
     public static final DeferredRegister.Entities TYPES = DeferredRegister.createEntities(Hive.ID);
