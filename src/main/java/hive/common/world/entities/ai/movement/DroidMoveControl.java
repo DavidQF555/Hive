@@ -5,12 +5,14 @@ import hive.common.world.entities.DroidEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForgeMod;
 import net.neoforged.neoforge.fluids.FluidType;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 
@@ -20,13 +22,16 @@ public class DroidMoveControl extends MoveControl {
     private static final double ERROR = 1E-7;
     // velocity tolerance in blocks/tick for starting jumps
     private static final double JUMP_ERROR = 0.1;
+    private static final double ROTATION_ERROR = 0.1;
     // slope to target above which SWIMMING rises or sinks
     private static final double SWIM_SLOPE_THRESHOLD = 0.1;
     // probability of triggering a surface jump in WADE, mirrors AmphibiousPathNavigation behavior
     private static final float WADE_JUMP_CHANCE = 0.8f;
+    private static final float ATTACK_TURN_RATE_DEGREES = 30;
     private final DroidEntity mob;
     private DroidOperation operation = DroidOperation.WAIT;
     private boolean stuck;
+    private @Nullable LivingEntity attackTarget;
 
     public DroidMoveControl(DroidEntity mob) {
         super(mob);
@@ -38,15 +43,21 @@ public class DroidMoveControl extends MoveControl {
         double max = this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED);
         if (operation == DroidOperation.WAIT) {
             setPose(Pose.STANDING);
+            handleBodyRotation(mob.getYRot());
             setDeltaMovement(0, 0, max, 1); // friction is negligible here because target speed is 0
             return;
         }
         double dX = wantedX - mob.getX();
         double dY = wantedY - mob.getY();
         double dZ = wantedZ - mob.getZ();
-        float rot = rotlerp(mob.getYRot(), (float) (Mth.atan2(dZ, dX) * 180 / (float) Math.PI) - 90, 90);
         double len = Math.sqrt(dX * dX + dZ * dZ);
         double dist = Math.sqrt(dX * dX + dZ * dZ + dY * dY);
+        float rot;
+        if (len < ROTATION_ERROR) {
+            rot = mob.getYRot();
+        } else {
+            rot = rotlerp(mob.getYRot(), (float) (Mth.atan2(dZ, dX) * 180 / (float) Math.PI) - 90, 90);
+        }
         if (dist < ERROR) {
             setOperation(DroidOperation.WAIT);
         }
@@ -88,7 +99,7 @@ public class DroidMoveControl extends MoveControl {
             if (mob.isInFluidType()) {
                 setOperation(DroidOperation.WADE);
             } else if (mob.onGround()) {
-                setOperation(DroidOperation.WAIT);
+                setOperation(DroidOperation.MOVE_TO);
             } else {
                 Optional<Double> t = getLandingTime();
                 if (t.isEmpty()) {
@@ -96,7 +107,7 @@ public class DroidMoveControl extends MoveControl {
                     setStuck(true);
                 } else {
                     setPose(Pose.STANDING);
-                    mob.setYRot(rot);
+                    handleBodyRotation(rot);
                     setDeltaMovement(dX / Physics.Constants.AIR_FRICTION / t.get(), dZ / Physics.Constants.AIR_FRICTION / t.get(), max, Physics.Constants.AIR_FRICTION);
                 }
             }
@@ -131,7 +142,7 @@ public class DroidMoveControl extends MoveControl {
                 );
                 double tX = dX * speed / len / friction;
                 double tZ = dZ * speed / len / friction;
-                mob.setYRot(rot);
+                handleBodyRotation(rot);
                 setDeltaMovement(tX, tZ, max, friction);
             }
         }
@@ -148,7 +159,7 @@ public class DroidMoveControl extends MoveControl {
                 double targetSpeed = Math.min(len, terminal);
                 double tX = dX * targetSpeed / len;
                 double tZ = dZ * targetSpeed / len;
-                mob.setYRot(rot);
+                handleBodyRotation(rot);
                 setDeltaMovement(tX, tZ, max, blockFriction * Physics.Constants.AIR_FRICTION);
             }
         }
@@ -179,7 +190,7 @@ public class DroidMoveControl extends MoveControl {
                 double targetSpeed = Math.min(len, terminal);
                 double tX = len < ERROR ? 0 : dX * targetSpeed / len;
                 double tZ = len < ERROR ? 0 : dZ * targetSpeed / len;
-                mob.setYRot(rot);
+                handleBodyRotation(rot);
                 setDeltaMovement(tX, tZ, max, friction, swimSpeed);
             }
         }
@@ -189,6 +200,47 @@ public class DroidMoveControl extends MoveControl {
         if (mob.getPose() != pose) {
             mob.setPose(pose);
         }
+    }
+
+    public void setAttackTarget(@Nullable LivingEntity target) {
+        this.attackTarget = target;
+    }
+
+    private void handleBodyRotation(float rot) {
+        if (shouldRotateBodyForAttack()) {
+            rotateBodyTowardTarget(attackTarget);
+        } else {
+            mob.setYRot(rot);
+        }
+    }
+
+    private boolean shouldRotateBodyForAttack() {
+        if (attackTarget == null || !attackTarget.isAlive()) {
+            return false;
+        }
+        double dx = attackTarget.getX() - mob.getX();
+        double dz = attackTarget.getZ() - mob.getZ();
+        float targetYaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+        float bodyDelta = Math.abs(Mth.wrapDegrees(targetYaw - mob.yBodyRot));
+        float bodyAlignmentTolerance = mob.getMaxHeadYRot() + DroidEntity.ATTACK_FACING_THRESHOLD_DEGREES;
+        if (bodyDelta <= bodyAlignmentTolerance) {
+            return false;
+        }
+        if (!mob.onGround() && !mob.isInWater()) {
+            return false;
+        }
+        int ticksToAlign = (int) Math.ceil((bodyDelta - bodyAlignmentTolerance) / ATTACK_TURN_RATE_DEGREES);
+        long ticksUntilAttack = Math.max(0, mob.getNextAttackTick() - mob.level().getGameTime());
+        return ticksUntilAttack <= ticksToAlign;
+    }
+
+    private void rotateBodyTowardTarget(LivingEntity target) {
+        double dx = target.getX() - mob.getX();
+        double dz = target.getZ() - mob.getZ();
+        float targetYaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+        float delta = Mth.wrapDegrees(targetYaw - mob.getYRot());
+        float step = Mth.clamp(delta, -ATTACK_TURN_RATE_DEGREES, ATTACK_TURN_RATE_DEGREES);
+        mob.setYRot(mob.getYRot() + step);
     }
 
     private void setDeltaMovement(double cX, double cZ, double speed, double friction) {
@@ -298,6 +350,12 @@ public class DroidMoveControl extends MoveControl {
         setWantedPosition(x, y, z, speed);
         if (operation == DroidOperation.SWIMMING) {
             setOperation(DroidOperation.MOVE_TO);
+        }
+    }
+
+    public void stop() {
+        if (operation == DroidOperation.MOVE_TO) {
+            setOperation(DroidOperation.WAIT);
         }
     }
 

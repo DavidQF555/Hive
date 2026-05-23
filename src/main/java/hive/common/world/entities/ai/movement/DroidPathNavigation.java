@@ -66,22 +66,24 @@ public class DroidPathNavigation extends GroundPathNavigation {
     @Override
     public void tick() {
         super.tick();
-        if (isDone() || !(mob.getMoveControl() instanceof DroidMoveControl control)) {
+        if (!(mob.getMoveControl() instanceof DroidMoveControl control)) {
             return;
         }
         if (control.isStuck()) {
             stop();
             control.setStuck(false);
-            return;
-        }
-        Node node = path.getNextNode();
-        Vec3 target = getNodeTargetPos(node);
-        double tx = target.x();
-        double tz = target.z();
-        switch (ModedNode.modeOf(node)) {
-            case JUMP -> control.jumpTowards(tx, getGroundY(target), tz, speedModifier);
-            case SWIM -> control.swimTo(tx, getSwimY(Mth.floor(target.y())), tz, speedModifier);
-            case WALK -> control.walkTo(tx, getGroundY(target), tz, speedModifier);
+        } else if (isDone()) {
+            control.stop();
+        } else {
+            Node node = path.getNextNode();
+            Vec3 target = getNodeTargetPos(node);
+            double tx = target.x();
+            double tz = target.z();
+            switch (ModedNode.modeOf(node)) {
+                case JUMP -> control.jumpTowards(tx, getGroundY(target), tz, speedModifier);
+                case SWIM -> control.swimTo(tx, getSwimY(Mth.floor(target.y())), tz, speedModifier);
+                case WALK -> control.walkTo(tx, getGroundY(target), tz, speedModifier);
+            }
         }
     }
 

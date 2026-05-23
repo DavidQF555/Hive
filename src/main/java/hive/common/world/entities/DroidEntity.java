@@ -4,6 +4,7 @@ import hive.common.ItemTags;
 import hive.common.ServerConfigs;
 import hive.common.world.Physics;
 import hive.common.world.entities.ai.DroidMeleeAttackGoal;
+import hive.common.world.entities.ai.movement.DroidLookControl;
 import hive.common.world.entities.ai.movement.DroidMoveControl;
 import hive.common.world.entities.ai.movement.DroidPathNavigation;
 import hive.common.world.entities.ai.pathfinding.ModedNode;
@@ -13,9 +14,11 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.DifficultyInstance;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
@@ -56,14 +59,17 @@ import java.util.Optional;
 public class DroidEntity extends Monster {
 
     public static final List<EquipmentSlot> EQUIPMENT_POPULATION_ORDER = List.of(EquipmentSlot.MAINHAND, EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND);
+    public static final float ATTACK_FACING_THRESHOLD_DEGREES = 20;
     // knockback damping in doHurtTarget, same as Mob.doHurtTarget
     private static final float KNOCKBACK_TARGET_SCALE = 0.5f;
     private static final double KNOCKBACK_SELF_DAMP = 0.6;
+    private static final int TICKS_PER_SECOND = 20;
     private long nextAttackTick; // tick when attack is off cooldown
 
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
         super(type, world);
         moveControl = new DroidMoveControl(this);
+        lookControl = new DroidLookControl(this);
         setCanPickUpLoot(true);
         setPathfindingMalus(PathType.WATER, 0);
         setPathfindingMalus(PathType.WATER_BORDER, 0);
@@ -81,10 +87,6 @@ public class DroidEntity extends Monster {
 
     public long getNextAttackTick() {
         return nextAttackTick;
-    }
-
-    public void setNextAttackTick(long tick) {
-        this.nextAttackTick = tick;
     }
 
     @Override
@@ -208,14 +210,29 @@ public class DroidEntity extends Monster {
     }
 
     @Override
+    public DroidMoveControl getMoveControl() {
+        return (DroidMoveControl) super.getMoveControl();
+    }
+
+    @Override
+    public int getMaxHeadYRot() {
+        return (int) getMaxHeadRotationRelativeToBody();
+    }
+
+    @Override
     protected void customServerAiStep(ServerLevel world) {
         super.customServerAiStep(world);
-        if (getMoveControl() instanceof DroidMoveControl control) {
-            boolean sprint = control.shouldSprint();
-            if (sprint != isSprinting()) {
-                setSprinting(sprint);
-            }
+        DroidMoveControl control = getMoveControl();
+        boolean sprint = control.shouldSprint();
+        if (sprint != isSprinting()) {
+            setSprinting(sprint);
         }
+
+        LivingEntity target = getTarget();
+        // tells move control to prepare for attack by rotating
+        control.setAttackTarget(isAttackable(target) ? target : null);
+        tryAttackTarget(world);
+
         if (ServerConfigs.INSTANCE.pathDebug.get() && world.getGameTime() % 20 == 0) {
             Path path = getNavigation().getPath();
             if (path != null) {
@@ -230,6 +247,40 @@ public class DroidEntity extends Monster {
                 PacketDistributor.sendToPlayersTrackingEntity(this, new DebugPathEffectPacket(all, modes));
             }
         }
+    }
+
+    private void tryAttackTarget(ServerLevel world) {
+        if (!canSwing()) {
+            return;
+        }
+        LivingEntity target = getTarget();
+        long now = world.getGameTime();
+        if (now < nextAttackTick || target.invulnerableTime > Physics.Constants.INVULNERABLE_TICKS) {
+            return;
+        }
+        nextAttackTick = now + getAttackCooldownTicks();
+        swing(InteractionHand.MAIN_HAND);
+        doHurtTarget(world, target);
+    }
+
+    protected boolean canSwing() {
+        LivingEntity target = getTarget();
+        if (!isAttackable(target)) {
+            return false;
+        }
+        double dx = target.getX() - getX();
+        double dz = target.getZ() - getZ();
+        float targetYaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+        return Math.abs(Mth.wrapDegrees(targetYaw - yHeadRot)) <= ATTACK_FACING_THRESHOLD_DEGREES;
+    }
+
+    private boolean isAttackable(@Nullable LivingEntity target) {
+        return target != null && target.isAlive() && isWithinMeleeAttackRange(target) && getSensing().hasLineOfSight(target);
+    }
+
+    private int getAttackCooldownTicks() {
+        double speed = getAttributeValue(Attributes.ATTACK_SPEED);
+        return speed > 0 ? (int) Math.ceil((double) TICKS_PER_SECOND / speed) : TICKS_PER_SECOND;
     }
 
     @Override
