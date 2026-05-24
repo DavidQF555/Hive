@@ -64,6 +64,9 @@ public class DroidEntity extends Monster {
     private static final float KNOCKBACK_TARGET_SCALE = 0.5f;
     private static final double KNOCKBACK_SELF_DAMP = 0.6;
     private static final int TICKS_PER_SECOND = 20;
+    // mirrors LocalPlayer.hasEnoughImpulseToStartSprinting
+    private static final double SPRINT_INPUT_MAGNITUDE_SQ = 0.8 * 0.8;
+    private static final double SPRINT_UNDERWATER_INPUT_MAGNITUDE_SQ = 1E-5;
     private long nextAttackTick; // tick when attack is off cooldown
 
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
@@ -222,12 +225,12 @@ public class DroidEntity extends Monster {
     @Override
     protected void customServerAiStep(ServerLevel world) {
         super.customServerAiStep(world);
-        DroidMoveControl control = getMoveControl();
-        boolean sprint = control.shouldSprint();
+        boolean sprint = shouldSprint();
         if (sprint != isSprinting()) {
             setSprinting(sprint);
         }
 
+        DroidMoveControl control = getMoveControl();
         LivingEntity target = getTarget();
         // tells move control to prepare for attack by rotating
         control.setAttackTarget(isAttackable(target) ? target : null);
@@ -276,6 +279,18 @@ public class DroidEntity extends Monster {
 
     private boolean isAttackable(@Nullable LivingEntity target) {
         return target != null && target.isAlive() && isWithinMeleeAttackRange(target) && getSensing().hasLineOfSight(target);
+    }
+
+    // mirrors LocalPlayer.hasEnoughImpulseToStartSprinting
+    protected boolean shouldSprint() {
+        double impulseSq = xxa * xxa + zza * zza;
+        if (isUnderWater()) {
+            return isSwimming() && impulseSq > SPRINT_UNDERWATER_INPUT_MAGNITUDE_SQ;
+        }
+        if (isInWater()) {
+            return false;
+        }
+        return impulseSq > SPRINT_INPUT_MAGNITUDE_SQ;
     }
 
     private int getAttackCooldownTicks() {

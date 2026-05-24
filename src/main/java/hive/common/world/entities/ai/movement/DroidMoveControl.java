@@ -267,8 +267,6 @@ public class DroidMoveControl extends MoveControl {
         if (side < 0) {
             xxa *= -1;
         }
-        // real players can't sprint sideways or backward
-        // TODO: Would be more realistic to disable sprinting when forward impulse isn't big enough instead of bounding sideways and backwards impulse
         double scale = getScale(zza, xxa);
         zza *= scale;
         xxa *= scale;
@@ -285,23 +283,16 @@ public class DroidMoveControl extends MoveControl {
     }
 
     private double getScale(double zza, double xxa) {
-        double zzaMin = -1;
-        double xxaCap = 1;
-        if (mob.isSprinting()) {
-            double cap = 1 / Physics.Constants.SPRINT_MULTIPLIER;
-            zzaMin = -cap;
-            xxaCap = cap;
-        }
         double scale = 1;
         if (zza > 1) {
             scale = Math.min(scale, 1 / zza);
-        } else if (zza < zzaMin) {
-            scale = Math.min(scale, zzaMin / zza);
+        } else if (zza < -1) {
+            scale = Math.min(scale, -1 / zza);
         }
-        if (xxa > xxaCap) {
-            scale = Math.min(scale, xxaCap / xxa);
-        } else if (xxa < -xxaCap) {
-            scale = Math.min(scale, -xxaCap / xxa);
+        if (xxa > 1) {
+            scale = Math.min(scale, 1 / xxa);
+        } else if (xxa < -1) {
+            scale = Math.min(scale, -1 / xxa);
         }
         return scale;
     }
@@ -312,17 +303,6 @@ public class DroidMoveControl extends MoveControl {
 
     public void setStuck(boolean stuck) {
         this.stuck = stuck;
-    }
-
-    public boolean shouldSprint() {
-        if (operation == DroidOperation.WADE) {
-            return false;
-        }
-        if (operation == DroidOperation.WAIT) {
-            // stay sprinting through wait state if still moving
-            return mob.getNavigation().isInProgress();
-        }
-        return true;
     }
 
     protected void setOperation(DroidOperation operation) {
