@@ -99,8 +99,13 @@ public class DroidPathNavigation extends GroundPathNavigation {
 
     @Override
     protected boolean shouldTargetNextNodeInDirection(Vec3 start) {
-        return super.shouldTargetNextNodeInDirection(start)
-                && ModedNode.modeOf(path.getNode(path.getNextNodeIndex() + 1)) != MovementMode.JUMP;
+        if (!super.shouldTargetNextNodeInDirection(start)) {
+            return false;
+        }
+        int next = path.getNextNodeIndex();
+        MovementMode current = ModedNode.modeOf(path.getNode(next));
+        MovementMode after = ModedNode.modeOf(path.getNode(next + 1));
+        return current == after && after != MovementMode.JUMP;
     }
 
     // corner-cutting through fluid (mirrors AmphibiousPathNavigation)

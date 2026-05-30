@@ -66,7 +66,7 @@ public class DroidEntity extends Monster {
     private static final int TICKS_PER_SECOND = 20;
     // mirrors LocalPlayer.hasEnoughImpulseToStartSprinting
     private static final double SPRINT_INPUT_MAGNITUDE_SQ = 0.8 * 0.8;
-    private static final double SPRINT_UNDERWATER_INPUT_MAGNITUDE_SQ = 1E-5;
+    private static final double SPRINT_SWIM_INPUT_MAGNITUDE_SQ = 1E-5;
     private long nextAttackTick; // tick when attack is off cooldown
 
     public DroidEntity(EntityType<? extends DroidEntity> type, Level world) {
@@ -284,8 +284,8 @@ public class DroidEntity extends Monster {
     // mirrors LocalPlayer.hasEnoughImpulseToStartSprinting
     protected boolean shouldSprint() {
         double impulseSq = xxa * xxa + zza * zza;
-        if (isUnderWater()) {
-            return isSwimming() && impulseSq > SPRINT_UNDERWATER_INPUT_MAGNITUDE_SQ;
+        if (isVisuallySwimming()) {
+            return impulseSq > SPRINT_SWIM_INPUT_MAGNITUDE_SQ;
         }
         if (isInWater()) {
             return false;

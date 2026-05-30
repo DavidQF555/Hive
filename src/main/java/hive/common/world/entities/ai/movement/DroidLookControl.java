@@ -16,11 +16,15 @@ public class DroidLookControl extends LookControl {
 
     @Override
     public void tick() {
-        LivingEntity target = mob.getTarget();
-        if (target != null && target.isAlive()) {
-            setLookAt(target, HEAD_YAW_SPEED, HEAD_PITCH_SPEED);
+        if (mob.isVisuallySwimming()) {
+            mob.setYHeadRot(mob.getYRot());
+        } else {
+            LivingEntity target = mob.getTarget();
+            if (target != null && target.isAlive()) {
+                setLookAt(target, HEAD_YAW_SPEED, HEAD_PITCH_SPEED);
+            }
+            super.tick();
         }
-        super.tick();
     }
 
 }

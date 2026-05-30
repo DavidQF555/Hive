@@ -62,37 +62,55 @@ public class DroidMoveControl extends MoveControl {
             setOperation(DroidOperation.WAIT);
         }
         if (operation == DroidOperation.START_JUMP) {
-            if (mob.onGround()) {
-                if (mob.isInFluidType()) {
-                    setOperation(DroidOperation.WADE);
+            if (mob.isInFluidType()) {
+                setOperation(DroidOperation.FLUID_LAUNCH);
+            } else if (mob.onGround()) {
+                Optional<Double> t = getJumpLandingTime();
+                if (t.isEmpty()) {
+                    setOperation(DroidOperation.WAIT);
+                    setStuck(true);
                 } else {
-                    Optional<Double> t = getJumpLandingTime();
-                    if (t.isEmpty()) {
-                        setOperation(DroidOperation.WAIT);
-                        setStuck(true);
-                    } else {
-                        setPose(Pose.STANDING);
-                        BlockPos below = mob.getBlockPosBelowThatAffectsMyMovement();
-                        float friction = mob.level().getBlockState(below).getFriction(mob.level(), below, mob) * Physics.Constants.AIR_FRICTION;
-                        double tX = dX / Physics.Constants.AIR_FRICTION / t.get();
-                        double tZ = dZ / Physics.Constants.AIR_FRICTION / t.get();
-                        if (mob.isSprinting()) {
-                            // lower requirements when sprinting because there is boost
-                            double adjX = tX + Math.sin(rot * Math.PI / 180) * Physics.Constants.JUMP_BOOST;
-                            double adjZ = tZ - Math.cos(rot * Math.PI / 180) * Physics.Constants.JUMP_BOOST;
-                            // ensure sign doesn't change
-                            tX = (tX > 0 && adjX < 0) || (tX < 0 && adjX > 0) ? 0 : adjX;
-                            tZ = (tZ > 0 && adjZ < 0) || (tZ < 0 && adjZ > 0) ? 0 : adjZ;
-                        }
-                        mob.setYRot(rot);
-                        setDeltaMovement(tX, tZ, max, friction);
-                        if (mob.noJumpDelay <= 0 && canJump(tX, tZ)) {
-                            mob.getJumpControl().jump();
-                        }
+                    setPose(Pose.STANDING);
+                    BlockPos below = mob.getBlockPosBelowThatAffectsMyMovement();
+                    float friction = mob.level().getBlockState(below).getFriction(mob.level(), below, mob) * Physics.Constants.AIR_FRICTION;
+                    double tX = dX / Physics.Constants.AIR_FRICTION / t.get();
+                    double tZ = dZ / Physics.Constants.AIR_FRICTION / t.get();
+                    if (mob.isSprinting()) {
+                        // lower requirements when sprinting because there is boost
+                        double adjX = tX + Math.sin(rot * Math.PI / 180) * Physics.Constants.JUMP_BOOST;
+                        double adjZ = tZ - Math.cos(rot * Math.PI / 180) * Physics.Constants.JUMP_BOOST;
+                        // ensure sign doesn't change
+                        tX = (tX > 0 && adjX < 0) || (tX < 0 && adjX > 0) ? 0 : adjX;
+                        tZ = (tZ > 0 && adjZ < 0) || (tZ < 0 && adjZ > 0) ? 0 : adjZ;
+                    }
+                    mob.setYRot(rot);
+                    setDeltaMovement(tX, tZ, max, friction);
+                    if (mob.noJumpDelay <= 0 && canJump(tX, tZ)) {
+                        mob.getJumpControl().jump();
                     }
                 }
             } else {
                 setOperation(DroidOperation.IN_AIR);
+            }
+        }
+        if (operation == DroidOperation.FLUID_LAUNCH) {
+            if (!mob.isInFluidType()) {
+                setOperation(mob.onGround() ? DroidOperation.MOVE_TO : DroidOperation.IN_AIR);
+            } else {
+                setPose(Pose.STANDING);
+                mob.getJumpControl().jump();
+                double friction = Physics.getFluidFriction(
+                        false,
+                        mob.getWaterSlowDown(),
+                        mob.hasEffect(MobEffects.DOLPHINS_GRACE),
+                        mob.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY),
+                        mob.onGround()
+                );
+                double fluidSpeed = Math.min(len, max);
+                double tX = len < ERROR ? 0 : dX * fluidSpeed / len / friction;
+                double tZ = len < ERROR ? 0 : dZ * fluidSpeed / len / friction;
+                mob.setYRot(rot);
+                setDeltaMovement(tX, tZ, max, friction);
             }
         }
         if (this.operation == DroidOperation.IN_AIR) {
@@ -140,8 +158,8 @@ public class DroidMoveControl extends MoveControl {
                         mob.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY),
                         mob.onGround()
                 );
-                double tX = dX * speed / len / friction;
-                double tZ = dZ * speed / len / friction;
+                double tX = len < ERROR ? 0 : dX * speed / len / friction;
+                double tZ = len < ERROR ? 0 : dZ * speed / len / friction;
                 handleBodyRotation(rot);
                 setDeltaMovement(tX, tZ, max, friction);
             }
@@ -168,30 +186,32 @@ public class DroidMoveControl extends MoveControl {
                 setOperation(mob.onGround() ? DroidOperation.MOVE_TO : DroidOperation.IN_AIR);
             } else {
                 setPose(Pose.SWIMMING);
-                float targetPitch = len < ERROR ? 0 : (float) (-Math.atan2(dY, len) * 180 / Math.PI);
-                mob.setXRot(targetPitch);
-                FluidType fluid = mob.level().getFluidState(mob.blockPosition()).getFluidType();
-                double slope = len < ERROR ? Math.signum(dY) : dY / len;
-                if (slope > SWIM_SLOPE_THRESHOLD) {
-                    mob.getJumpControl().jump();
-                } else if (slope < -SWIM_SLOPE_THRESHOLD) {
-                    mob.sinkInFluid(fluid);
+                if (handleSwimRotation(dY, len, dist, rot)) {
+                    mob.setZza(0);
+                    mob.setXxa(0);
+                } else {
+                    double waterEff = mob.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY);
+                    double friction = Physics.getFluidFriction(
+                            true,
+                            mob.getWaterSlowDown(),
+                            mob.hasEffect(MobEffects.DOLPHINS_GRACE),
+                            waterEff,
+                            mob.onGround()
+                    );
+                    double swimSpeed = Physics.getSwimSpeedMultiplier(max, waterEff, mob.onGround()) * mob.getAttributeValue(NeoForgeMod.SWIM_SPEED);
+                    FluidType fluid = mob.level().getFluidState(mob.blockPosition()).getFluidType();
+                    double slope = len < ERROR ? Math.signum(dY) : dY / len;
+                    if (slope > SWIM_SLOPE_THRESHOLD) {
+                        mob.getJumpControl().jump();
+                    } else if (slope < -SWIM_SLOPE_THRESHOLD) {
+                        mob.sinkInFluid(fluid);
+                    }
+                    double terminal = Physics.getTerminalSpeed(swimSpeed, friction);
+                    double targetSpeed = Math.min(len, terminal);
+                    double tX = len < ERROR ? 0 : dX * targetSpeed / len;
+                    double tZ = len < ERROR ? 0 : dZ * targetSpeed / len;
+                    setDeltaMovement(tX, tZ, max, friction, swimSpeed);
                 }
-                double waterEff = mob.getAttributeValue(Attributes.WATER_MOVEMENT_EFFICIENCY);
-                double friction = Physics.getFluidFriction(
-                        true,
-                        mob.getWaterSlowDown(),
-                        mob.hasEffect(MobEffects.DOLPHINS_GRACE),
-                        waterEff,
-                        mob.onGround()
-                );
-                double swimSpeed = Physics.getSwimSpeedMultiplier(max, waterEff, mob.onGround()) * mob.getAttributeValue(NeoForgeMod.SWIM_SPEED);
-                double terminal = Physics.getTerminalSpeed(swimSpeed, friction);
-                double targetSpeed = Math.min(len, terminal);
-                double tX = len < ERROR ? 0 : dX * targetSpeed / len;
-                double tZ = len < ERROR ? 0 : dZ * targetSpeed / len;
-                handleBodyRotation(rot);
-                setDeltaMovement(tX, tZ, max, friction, swimSpeed);
             }
         }
     }
@@ -212,6 +232,19 @@ public class DroidMoveControl extends MoveControl {
         } else {
             mob.setYRot(rot);
         }
+    }
+
+    // returns whether the droid is turning for an attack
+    private boolean handleSwimRotation(double dY, double len, double dist, float rot) {
+        if (dist >= ROTATION_ERROR) {
+            mob.setXRot((float) (-Math.atan2(dY, len) * 180 / Math.PI));
+        }
+        if (shouldRotateBodyForAttack()) {
+            rotateBodyTowardTarget(attackTarget);
+            return true;
+        }
+        mob.setYRot(rot);
+        return false;
     }
 
     private boolean shouldRotateBodyForAttack() {
@@ -315,9 +348,9 @@ public class DroidMoveControl extends MoveControl {
     }
 
     public void jumpTowards(double x, double y, double z, double speed) {
-        if (operation == DroidOperation.WAIT || operation == DroidOperation.MOVE_TO) {
+        if (operation == DroidOperation.WAIT || operation == DroidOperation.MOVE_TO || operation == DroidOperation.WADE) {
             setWantedPosition(x, y, z, speed);
-            setOperation(DroidOperation.START_JUMP);
+            setOperation(mob.isInFluidType() ? DroidOperation.FLUID_LAUNCH : DroidOperation.START_JUMP);
         }
     }
 
@@ -365,6 +398,7 @@ public class DroidMoveControl extends MoveControl {
         MOVE_TO(),
         IN_AIR(),
         START_JUMP(),
+        FLUID_LAUNCH(),
         WADE(),
         SWIMMING()
     }
