@@ -141,15 +141,18 @@ public class DroidPathfinder extends PathFinder {
             return Physics.getLandingTime(gravity, n2.y - n1.y, ySpeed)
                     .map(t -> (float) (t * groundWalkSpeed))
                     .orElseGet(() -> n1.distanceTo(n2));
-        }
-        // fall
-        else if (n2.y < n1.y) {
+        } else if (n2.y < n1.y) {
+            // sink
+            if (n1.type == PathType.WATER && n2.type == PathType.WATER) {
+                return n1.distanceTo(n2) * groundWalkSpeed / wadeSpeed;
+            }
+            // fall
             return Physics.getLandingTime(gravity, n2.y - n1.y, 0)
                     .map(t -> (float) (t * groundWalkSpeed))
                     .orElseGet(() -> n1.distanceTo(n2));
         }
         // wade
-        else if (n2.type == PathType.WATER) {
+        else if (n1.type == PathType.WATER || n2.type == PathType.WATER) {
             return dist * groundWalkSpeed / wadeSpeed;
         }
         // walk
