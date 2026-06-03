@@ -235,11 +235,11 @@ public class DroidEntity extends Monster {
         }
 
         if (getMoveControl() instanceof DroidMoveControl control) {
-            LivingEntity target = getTarget();
             // tells move control to prepare for attack by rotating
+            LivingEntity target = getTarget();
             control.setAttackTarget(isAttackable(target) ? target : null);
-            tryAttackTarget();
         }
+        tryAttackTarget();
 
         if (ServerConfigs.INSTANCE.pathDebug.get() && level().getGameTime() % 20 == 0) {
             Path path = getNavigation().getPath();
