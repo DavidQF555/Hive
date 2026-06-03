@@ -3,7 +3,6 @@ package hive.common.world.entities.ai;
 import hive.common.world.Physics;
 import hive.common.world.entities.DroidEntity;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -33,8 +32,6 @@ public class DroidMeleeAttackGoal extends Goal {
     // ticks before re-running pathfinding, same as MeleeAttackGoal
     private static final int REPATH_DELAY_BASE = 4;
     private static final int REPATH_DELAY_RANDOM = 7;
-    // ticks per second to convert the ATTACK_SPEED attribute into a tick cooldown
-    private static final int TICKS_PER_SECOND = 20;
     private final DroidEntity mob;
     private final double speedModifier;
     private final boolean followTargetEvenIfNotSeen;
@@ -101,15 +98,6 @@ public class DroidMeleeAttackGoal extends Goal {
 
         recordTargetPosition(target);
 
-        mob.getLookControl().setLookAt(target, 30, 30);
-
-        long now = mob.level().getGameTime();
-        if (now >= mob.getNextAttackTick() && target.invulnerableTime <= Physics.Constants.INVULNERABLE_TICKS && mob.isWithinMeleeAttackRange(target) && mob.getSensing().hasLineOfSight(target)) {
-            mob.setNextAttackTick(now + getAttackCooldownTicks());
-            mob.swing(InteractionHand.MAIN_HAND);
-            mob.doHurtTarget(target);
-        }
-
         if (--ticksUntilNextPathRecalculation <= 0) {
             ticksUntilNextPathRecalculation = REPATH_DELAY_BASE + mob.getRandom().nextInt(REPATH_DELAY_RANDOM);
             if (!mob.isPassenger()) {
@@ -132,11 +120,6 @@ public class DroidMeleeAttackGoal extends Goal {
         int newest = (historyIndex - 1 + VELOCITY_SAMPLE_WINDOW) % VELOCITY_SAMPLE_WINDOW;
         int oldest = (historyIndex - historyCount + VELOCITY_SAMPLE_WINDOW) % VELOCITY_SAMPLE_WINDOW;
         return positionHistory[newest].subtract(positionHistory[oldest]).scale(1.0 / (historyCount - 1));
-    }
-
-    private int getAttackCooldownTicks() {
-        double speed = mob.getAttributeValue(Attributes.ATTACK_SPEED);
-        return speed > 0 ? (int) Math.ceil((double) TICKS_PER_SECOND / speed) : TICKS_PER_SECOND;
     }
 
     private Vec3 findSafeIntercept(LivingEntity target) {
