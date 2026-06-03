@@ -213,11 +213,6 @@ public class DroidEntity extends Monster {
     }
 
     @Override
-    public DroidMoveControl getMoveControl() {
-        return (DroidMoveControl) super.getMoveControl();
-    }
-
-    @Override
     public int getMaxHeadYRot() {
         return (int) getMaxHeadRotationRelativeToBody();
     }
@@ -230,10 +225,11 @@ public class DroidEntity extends Monster {
             setSprinting(sprint);
         }
 
-        DroidMoveControl control = getMoveControl();
-        LivingEntity target = getTarget();
-        // tells move control to prepare for attack by rotating
-        control.setAttackTarget(isAttackable(target) ? target : null);
+        if (getMoveControl() instanceof DroidMoveControl control) {
+            // tells move control to prepare for attack by rotating
+            LivingEntity target = getTarget();
+            control.setAttackTarget(isAttackable(target) ? target : null);
+        }
         tryAttackTarget(world);
 
         if (ServerConfigs.INSTANCE.pathDebug.get() && world.getGameTime() % 20 == 0) {
